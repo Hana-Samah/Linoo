@@ -6,36 +6,198 @@ import {
   Image,
   Animated,
   Dimensions,
+  Platform,
+  SafeAreaView,
+  StatusBar,
 } from "react-native";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ScreenOrientation from "expo-screen-orientation";
+import { Audio } from "expo-av";
+import * as Speech from "expo-speech";
 import { getChildInfo } from "../storage/childStorage";
 import { speakWithFemaleVoice, stopSpeaking } from "../utils/ttsHelper";
 import { getStars, getCurrentStreak } from "../storage/rewardsTracking";
 import { getDailyProgress } from "../storage/dailyLionProgress";
 import LionProgress from "../components/LionProgress";
 
-const { width, height } = Dimensions.get("window");
+// 🎨 ألوان Linoo الترابية
+const COLORS = {
+  background: "#FAF8F5",
+  cream: "#F5EFE7",
+  green: "#7FA896",
+  teal: "#5B8A8F",
+  darkTeal: "#4A6B6F",
+  sage: "#B5C9B4",
+  orange: "#D9956C",
+  peach: "#E8B88E",
+  rust: "#B87B5B",
+  yellow: "#E8C68E",
+  lightBlue: "#A8C5C5",
+  white: "#FFFFFF",
+  textPrimary: "#4A4A4A",
+  textSecondary: "#7A7A7A",
+};
 
 export default function HomeScreen({ navigation }) {
   const [childInfo, setChildInfo] = useState(null);
   const [stars, setStars] = useState(0);
   const [streak, setStreak] = useState(0);
   const [dailyProgress, setDailyProgress] = useState(0);
-  
-  const scaleButtons = useRef(new Animated.Value(0)).current;
+  const [screenDimensions, setScreenDimensions] = useState(
+    Dimensions.get("window"),
+  );
+
+  // ✨ Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const lionFloat = useRef(new Animated.Value(0)).current;
+  const starPulse = useRef(new Animated.Value(1)).current;
   const [hasPlayedWelcome, setHasPlayedWelcome] = useState(false);
+
+  const soundRef = useRef(null);
 
   const buttonScales = {
     aac: useRef(new Animated.Value(1)).current,
     stories: useRef(new Animated.Value(1)).current,
-    stats: useRef(new Animated.Value(1)).current,
+  };
+
+  const buttonRotations = {
+    aac: useRef(new Animated.Value(0)).current,
+    stories: useRef(new Animated.Value(0)).current,
+  };
+
+  // 📱 Get dynamic values
+  const isPortrait = screenDimensions.height > screenDimensions.width;
+  const AAC_IMAGE = require("../../assets/aac-icon.png");
+  const STORIES_IMAGE = require("../../assets/stories-icon.png");
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", ({ window }) => {
+      setScreenDimensions(window);
+    });
+
+    // ⭐ نبضات النجوم المستمرة
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(starPulse, {
+          toValue: 1.2,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(starPulse, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+
+    return () => subscription?.remove();
+  }, []);
+
+  const playWelcomeSound = async (childName) => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+      Speech.stop();
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        require("../../assets/sounds/welcome.mp3"),
+        { shouldPlay: true },
+      );
+
+      soundRef.current = sound;
+
+      await new Promise((resolve) => {
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.didJustFinish) {
+            sound.unloadAsync();
+            soundRef.current = null;
+            resolve();
+          }
+        });
+      });
+
+      await new Promise((resolve) => {
+        Speech.speak(childName, {
+          language: "ar",
+          pitch: 1.3,
+          rate: 0.7,
+          onDone: resolve,
+          onStopped: resolve,
+          onError: resolve,
+        });
+      });
+    } catch (error) {
+      console.error("Error playing welcome sound:", error);
+      speakWithFemaleVoice(`مرحباً ${childName}`, {
+        pitch: 1.3,
+        rate: 0.7,
+      });
+    }
+  };
+
+  const playLionEncouragement = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+      Speech.stop();
+
+      const lionSounds = [
+        require("../../assets/sounds/lion/encouragement1.mp3"),
+        require("../../assets/sounds/lion/encouragement2.mp3"),
+        require("../../assets/sounds/lion/encouragement3.mp3"),
+      ];
+
+      const randomSound =
+        lionSounds[Math.floor(Math.random() * lionSounds.length)];
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(randomSound, {
+        shouldPlay: true,
+      });
+
+      soundRef.current = sound;
+
+      return new Promise((resolve) => {
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.didJustFinish) {
+            sound.unloadAsync();
+            soundRef.current = null;
+            resolve();
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Error playing lion encouragement:", error);
+      const messages = [
+        "رائع! استمر في عملك الجيد!",
+        "أنت تقوم بعمل ممتاز!",
+        "واصل! شعر الأسد ينمو!",
+      ];
+      const randomMessage =
+        messages[Math.floor(Math.random() * messages.length)];
+      speakWithFemaleVoice(randomMessage, { pitch: 1.3, rate: 0.7 });
+    }
   };
 
   useFocusEffect(
     useCallback(() => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      ScreenOrientation.unlockAsync();
 
       const loadChild = async () => {
         const child = await getChildInfo();
@@ -43,23 +205,16 @@ export default function HomeScreen({ navigation }) {
 
         const userStars = await getStars();
         const userStreak = await getCurrentStreak();
-        
+
         setStars(userStars);
         setStreak(userStreak);
 
-        // 🦁 تحميل تقدم الأسد اليومي
         const lionProgress = await getDailyProgress();
         setDailyProgress(lionProgress);
-        
-        console.log(`🦁 التقدم اليومي: ${lionProgress}/8`);
 
         if (child && !hasPlayedWelcome) {
           setTimeout(() => {
-            const greeting = `مرحباً ${child.name}`;
-            speakWithFemaleVoice(greeting, {
-              pitch: 1.3,
-              rate: 0.7,
-            });
+            playWelcomeSound(child.name);
             setHasPlayedWelcome(true);
           }, 800);
         }
@@ -67,25 +222,65 @@ export default function HomeScreen({ navigation }) {
 
       loadChild();
 
-      Animated.spring(scaleButtons, {
-        toValue: 1,
-        friction: 5,
-        tension: 40,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(lionFloat, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(lionFloat, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
 
       return () => {
+        if (soundRef.current) {
+          soundRef.current.unloadAsync();
+        }
+        Speech.stop();
         stopSpeaking();
-        scaleButtons.setValue(0);
+        fadeAnim.setValue(0);
+        slideAnim.setValue(50);
       };
-    }, [])
+    }, []),
   );
 
+  const lionTranslateY = lionFloat.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -15],
+  });
+
   const handlePressIn = (buttonName, soundText) => {
-    Animated.spring(buttonScales[buttonName], {
-      toValue: 0.9,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.spring(buttonScales[buttonName], {
+        toValue: 0.9,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonRotations[buttonName], {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     speakWithFemaleVoice(soundText, {
       pitch: 1.2,
@@ -94,400 +289,526 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handlePressOut = (buttonName) => {
-    Animated.spring(buttonScales[buttonName], {
-      toValue: 1,
-      friction: 3,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.spring(buttonScales[buttonName], {
+        toValue: 1,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+      Animated.spring(buttonRotations[buttonName], {
+        toValue: 0,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
+
+  const aacRotation = buttonRotations.aac.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "-5deg"],
+  });
+
+  const storiesRotation = buttonRotations.stories.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "5deg"],
+  });
 
   const navigateToAAC = () => {
     handlePressOut("aac");
-    setTimeout(() => {
-      navigation.navigate("Transition", {
-        targetScreen: "AAC",
-        targetParams: {},
-        message: "سننتقل للتواصل",
-        icon: "💬",
-      });
-    }, 100);
+    setTimeout(() => navigation.navigate("AAC"), 100);
   };
 
   const navigateToLearning = () => {
     handlePressOut("stories");
-    setTimeout(() => {
-      navigation.navigate("Transition", {
-        targetScreen: "Learning",
-        targetParams: {},
-        message: "سننتقل للقصص",
-        icon: "📚",
-      });
-    }, 100);
-  };
-
-  const navigateToStats = () => {
-    handlePressOut("stats");
-    setTimeout(() => navigation.navigate("Statistics"), 100);
+    setTimeout(() => navigation.navigate("Learning"), 100);
   };
 
   return (
-    <View style={styles.container}>
-      {/* الشريط العلوي */}
-      <View style={styles.topBar}>
-        <View style={styles.statsPreview}>
-          <View style={styles.statItem}>
-            <Text style={styles.statIcon}>⭐</Text>
-            <Text style={styles.statValue}>{stars}</Text>
-          </View>
-          
-          <View style={styles.statItem}>
-            <Text style={styles.statIcon}>🔥</Text>
-            <Text style={styles.statValue}>{streak}</Text>
-          </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+
+      <View style={styles.container}>
+        {/* 🎈 خلفية ترابية ناعمة */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.floatingShape, styles.shape1]} />
+          <View style={[styles.floatingShape, styles.shape2]} />
+          <View style={[styles.floatingShape, styles.shape3]} />
+          <View style={[styles.floatingShape, styles.shape4]} />
         </View>
 
-        <Animated.View style={{ transform: [{ scale: buttonScales.stats }] }}>
-          <TouchableOpacity
-            style={styles.statsButton}
-            onPress={navigateToStats}
-            onPressIn={() => handlePressIn("stats", "الإحصائيات")}
-            onPressOut={() => handlePressOut("stats")}
-            activeOpacity={1}
-          >
-            <Text style={styles.statsButtonIcon}>📊</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-
-      {/* زر البروفايل المخفي */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate("ParentGate")}
-        style={styles.secretButton}
-        activeOpacity={1}
-      >
-        {childInfo?.imageUri ? (
-          <Image
-            source={{ uri: childInfo.imageUri }}
-            style={styles.profileImage}
-          />
-        ) : (
-          <View style={styles.profilePlaceholder}>
-            <Text style={styles.profileIcon}>👤</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-
-      {/* 🦁 شعر الأسد اليومي */}
-      <View style={styles.lionSection}>
-        <LionProgress 
-          progress={dailyProgress}
-          maxProgress={8}
-          onPress={() => {
-            speakWithFemaleVoice("إحصائياتك", { pitch: 1.2, rate: 0.8 });
-            setTimeout(() => navigation.navigate("Statistics"), 500);
-          }}
-          showLabel={true}
-        />
-      </View>
-
-      {/* الأزرار الرئيسية */}
-      <View style={styles.mainContent}>
-        <View style={styles.buttonsRow}>
-          {/* زر التواصل */}
+        {/* الشريط العلوي: الترحيب + صورة الطفل */}
+        <View style={[styles.topHeader, isPortrait && styles.topHeaderPortrait]}>
+          {/* 👋 ترحيب */}
           <Animated.View
             style={[
-              styles.buttonWrapper,
+              styles.welcomeSection,
+              isPortrait && styles.welcomeSectionPortrait,
               {
-                transform: [
-                  { scale: scaleButtons },
-                  { scale: buttonScales.aac },
-                ],
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
               },
             ]}
           >
+            <View style={[styles.welcomeBubble, isPortrait && styles.welcomeBubblePortrait]}>
+              <Text style={[styles.helloText, isPortrait && styles.helloTextPortrait]}>مرحبا </Text>
+              {childInfo && (
+                <Text style={[styles.childNameText, isPortrait && styles.childNameTextPortrait]}>{childInfo.name}</Text>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* 👤 صورة الطفل */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("ParentGate")}
+            style={[styles.profileButton, isPortrait && styles.profileButtonPortrait]}
+            activeOpacity={0.9}
+          >
+            <View style={styles.profileContainer}>
+              {childInfo?.imageUri ? (
+                <Image
+                  source={{ uri: childInfo.imageUri }}
+                  style={[styles.profileImage, isPortrait && styles.profileImagePortrait]}
+                />
+              ) : (
+                <View style={[styles.profilePlaceholder, isPortrait && styles.profilePlaceholderPortrait]}>
+                  <Text style={[styles.profileEmoji, isPortrait && styles.profileEmojiPortrait]}>😊</Text>
+                </View>
+              )}
+              <View style={[styles.profileBorder, isPortrait && styles.profileBorderPortrait]} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* 🌟 شريط النجوم */}
+        <Animated.View
+          style={[
+            styles.starsBar,
+            isPortrait && styles.starsBarPortrait,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: starPulse }],
+            },
+          ]}
+        >
+        </Animated.View>
+
+        {/* 🦁 الأسد */}
+        <Animated.View
+          style={[
+            styles.lionSection,
+            isPortrait && styles.lionSectionPortrait,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: lionTranslateY }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={playLionEncouragement}
+            activeOpacity={0.8}
+            style={styles.lionTouchable}
+          >
+            <View style={[styles.lionBox, isPortrait && styles.lionBoxPortrait]}>
+              <LionProgress
+                progress={dailyProgress}
+                maxProgress={8}
+                onPress={playLionEncouragement}
+                showLabel={false}
+              />
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* 🎮 الأزرار الرئيسية */}
+        <Animated.View
+          style={[
+            styles.mainButtons,
+            isPortrait && styles.mainButtonsPortrait,
+            {
+              opacity: fadeAnim,
+            },
+          ]}
+        >
+          {/* 💬 زر التواصل */}
+          <Animated.View
+            style={{
+              transform: [
+                { scale: buttonScales.aac },
+                { rotate: aacRotation },
+              ],
+            }}
+          >
             <TouchableOpacity
-              style={[styles.mainButton, styles.aacButton]}
               onPress={navigateToAAC}
               onPressIn={() => handlePressIn("aac", "التواصل")}
               onPressOut={() => handlePressOut("aac")}
               activeOpacity={1}
+              style={[styles.bigButton, isPortrait && styles.bigButtonPortrait]}
             >
-              <View style={styles.iconDisplay}>
-                <View style={styles.iconGrid}>
-                  <View style={styles.wordCard}>
-                    <Text style={styles.wordIcon}>🍎</Text>
-                  </View>
-                  <View style={styles.wordCard}>
-                    <Text style={styles.wordIcon}>😊</Text>
-                  </View>
-                  <View style={styles.wordCard}>
-                    <Text style={styles.wordIcon}>🏠</Text>
-                  </View>
-                  <View style={styles.wordCard}>
-                    <Text style={styles.wordIcon}>❤️</Text>
+              <View style={[styles.buttonCard, styles.aacCard, isPortrait && styles.buttonCardPortrait]}>
+                {/* أيقونة كبيرة */}
+                <View style={styles.iconWrapper}>
+                  <View style={[styles.iconCircle, styles.aacIconBg, isPortrait && styles.iconCirclePortrait]}>
+                    <Image
+                      source={AAC_IMAGE}
+                      style={[styles.buttonIcon, isPortrait && styles.buttonIconPortrait]}
+                      resizeMode="contain"
+                    />
                   </View>
                 </View>
-              </View>
-
-              <View style={styles.buttonIndicator}>
-                <View style={[styles.indicator, styles.aacIndicator]} />
               </View>
             </TouchableOpacity>
           </Animated.View>
 
-          <View style={styles.spacer} />
-
-          {/* زر القصص */}
+          {/* 📚 زر القصص */}
           <Animated.View
-            style={[
-              styles.buttonWrapper,
-              {
-                transform: [
-                  { scale: scaleButtons },
-                  { scale: buttonScales.stories },
-                ],
-              },
-            ]}
+            style={{
+              transform: [
+                { scale: buttonScales.stories },
+                { rotate: storiesRotation },
+              ],
+            }}
           >
             <TouchableOpacity
-              style={[styles.mainButton, styles.storiesButton]}
               onPress={navigateToLearning}
               onPressIn={() => handlePressIn("stories", "القصص")}
               onPressOut={() => handlePressOut("stories")}
               activeOpacity={1}
+              style={[styles.bigButton, isPortrait && styles.bigButtonPortrait]}
             >
-              <View style={styles.iconDisplay}>
-                <Text style={styles.bigIcon}>📚</Text>
-                <View style={styles.floatingStars}>
-                  <Text style={styles.star}>⭐</Text>
-                  <Text style={styles.star}>⭐</Text>
-                  <Text style={styles.star}>⭐</Text>
+              <View style={[styles.buttonCard, styles.storiesCard, isPortrait && styles.buttonCardPortrait]}>
+                {/* أيقونة كبيرة */}
+                <View style={styles.iconWrapper}>
+                  <View style={[styles.iconCircle, styles.storiesIconBg, isPortrait && styles.iconCirclePortrait]}>
+                    <Image
+                      source={STORIES_IMAGE}
+                      style={[styles.buttonIcon, isPortrait && styles.buttonIconPortrait]}
+                      resizeMode="contain"
+                    />
+                  </View>
                 </View>
-              </View>
-
-              <View style={styles.buttonIndicator}>
-                <View style={[styles.indicator, styles.storiesIndicator]} />
               </View>
             </TouchableOpacity>
           </Animated.View>
-        </View>
+        </Animated.View>
+
+        {/* 🎨 زخرفة سفلية */}
+        {!isPortrait && (
+          <View style={styles.bottomEmojis}>
+            <Text style={styles.bottomEmoji}>🌈</Text>
+            <Text style={styles.bottomEmoji}>⭐</Text>
+            <Text style={styles.bottomEmoji}>🎈</Text>
+            <Text style={styles.bottomEmoji}>🎨</Text>
+            <Text style={styles.bottomEmoji}>🌟</Text>
+          </View>
+        )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: "#FAF8F5",
+    backgroundColor: COLORS.background,
   },
 
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 10,
-  },
-  statsPreview: {
-    flexDirection: "row",
-    gap: 15,
-  },
-  statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 15,
-    gap: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: "#E8C68E",
-  },
-  statIcon: {
-    fontSize: 20,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#4A6B6F",
-  },
-
-  statsButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#7FA896",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#7FA896",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
-  },
-  statsButtonIcon: {
-    fontSize: 32,
-  },
-
-  secretButton: {
+  /* 🎈 خلفية ترابية */
+  backgroundPattern: {
     position: "absolute",
-    top: 20,
-    right: 20,
-    zIndex: 10,
-    opacity: 0.3,
-  },
-  profileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
-  },
-  profilePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#E0E0E0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  profileIcon: {
-    fontSize: 30,
-    opacity: 0.5,
-  },
-
-  /* 🦁 قسم الأسد */
-  lionSection: {
-    position: "absolute",
-    top: 85,
-    left: 15,
-    zIndex: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 20,
-    padding: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 2,
-    borderColor: "#E8C68E",
-  },
-
-  mainContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 60,
-  },
-  buttonsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-  },
-  buttonWrapper: {
-    flex: 1,
-    maxWidth: 300,
-  },
-  spacer: {
-    width: 50,
-  },
-
-  mainButton: {
-    height: 320,
-    borderRadius: 45,
-    padding: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 25,
-    elevation: 20,
-    borderWidth: 6,
-    borderColor: "rgba(255, 255, 255, 0.4)",
-  },
-  aacButton: {
-    backgroundColor: "#7FA896",
-  },
-  storiesButton: {
-    backgroundColor: "#D9956C",
-  },
-
-  iconDisplay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-  },
-
-  iconGrid: {
-    width: "90%",
-    aspectRatio: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-around",
-    alignContent: "space-around",
-    padding: 10,
-  },
-  wordCard: {
-    width: "42%",
-    aspectRatio: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  wordIcon: {
-    fontSize: 55,
-  },
-
-  bigIcon: {
-    fontSize: 140,
-  },
-  floatingStars: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    flexDirection: "row",
-  },
-  star: {
-    fontSize: 25,
-    marginHorizontal: 3,
-  },
-
-  buttonIndicator: {
-    marginTop: 15,
-    width: "80%",
-    height: 12,
-    borderRadius: 6,
-    overflow: "hidden",
-    backgroundColor: "rgba(0, 0, 0, 0.1)",
-  },
-  indicator: {
     width: "100%",
     height: "100%",
-    borderRadius: 6,
   },
-  aacIndicator: {
-    backgroundColor: "#5B8A8F",
+  floatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
   },
-  storiesIndicator: {
-    backgroundColor: "#B87B5B",
+  shape1: {
+    width: 200,
+    height: 200,
+    backgroundColor: COLORS.green,
+    top: -50,
+    right: -60,
+  },
+  shape2: {
+    width: 150,
+    height: 150,
+    backgroundColor: COLORS.orange,
+    bottom: -40,
+    left: -50,
+  },
+  shape3: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.teal,
+    top: "30%",
+    left: -30,
+  },
+  shape4: {
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.peach,
+    bottom: "25%",
+    right: -20,
+  },
+
+  /* الشريط العلوي */
+  topHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: Platform.OS === "ios" ? 55 : 25,
+    paddingHorizontal: 20,
+    zIndex: 100,
+  },
+  topHeaderPortrait: {
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
+    paddingHorizontal: 15,
+  },
+
+  /* 👤 صورة الطفل */
+  profileButton: {
+    zIndex: 100,
+  },
+  profileButtonPortrait: {
+  },
+  profileContainer: {
+    position: "relative",
+  },
+  profileImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 4,
+    borderColor: COLORS.white,
+  },
+  profileImagePortrait: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 3,
+  },
+  profilePlaceholder: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: COLORS.white,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 4,
+    borderColor: COLORS.yellow,
+  },
+  profilePlaceholderPortrait: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 3,
+  },
+  profileEmoji: {
+    fontSize: 36,
+  },
+  profileEmojiPortrait: {
+    fontSize: 30,
+  },
+  profileBorder: {
+    position: "absolute",
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    borderWidth: 3,
+    borderColor: COLORS.sage,
+    top: -4,
+    left: -4,
+  },
+  profileBorderPortrait: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 2,
+    top: -3,
+    left: -3,
+  },
+
+  /* 🌟 شريط النجوم */
+  starsBar: {
+    position: "absolute",
+    top: Platform.OS === "ios" ? 135 : 105,
+    left: 20,
+    flexDirection: "row",
+    gap: 15,
+    zIndex: 100,
+  },
+  starsBarPortrait: {
+    top: Platform.OS === "ios" ? 120 : 90,
+    left: 15,
+  },
+
+  /* 👋 ترحيب */
+  welcomeSection: {
+    flex: 1,
+    alignItems: "flex-start",
+    marginRight: 15,
+  },
+  welcomeSectionPortrait: {
+    flex: 1,
+    marginRight: 10,
+  },
+  welcomeBubble: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: COLORS.cream,
+  },
+  welcomeBubblePortrait: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 3,
+  },
+  helloText: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COLORS.orange,
+    marginRight: 5,
+  },
+  helloTextPortrait: {
+    fontSize: 18,
+    marginRight: 4,
+  },
+  childNameText: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: COLORS.teal,
+  },
+  childNameTextPortrait: {
+    fontSize: 20,
+  },
+
+  /* 🦁 الأسد */
+  lionSection: {
+    alignItems: "center",
+    marginTop: 30,
+    paddingHorizontal: 20,
+  },
+  lionSectionPortrait: {
+    marginTop: 25,
+    paddingHorizontal: 15,
+  },
+  lionTouchable: {
+    borderRadius: 30,
+  },
+  lionBox: {
+    backgroundColor: COLORS.white,
+    borderRadius: 30,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 15,
+    elevation: 10,
+    borderWidth: 4,
+    borderColor: COLORS.sage,
+  },
+  lionBoxPortrait: {
+    borderRadius: 25,
+    padding: 15,
+    borderWidth: 3,
+  },
+
+  /* 🎮 الأزرار الرئيسية */
+  mainButtons: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+  },
+  mainButtonsPortrait: {
+    flexDirection: "column",
+    gap: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 20,
+  },
+
+  bigButton: {
+    width: Dimensions.get("window").width * 0.42,
+    maxWidth: 250,
+  },
+  bigButtonPortrait: {
+    width: "100%",
+    maxWidth: 350,
+  },
+
+  buttonCard: {
+    height: 250,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  buttonCardPortrait: {
+    height: 180,
+  },
+
+  /* أيقونات الأزرار */
+  iconCircle: {
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+    borderWidth: 5,
+  },
+  iconCirclePortrait: {
+    borderRadius: 25,
+    borderWidth: 4,
+  },
+  aacIconBg: {
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.sage,
+  },
+  storiesIconBg: {
+    backgroundColor: COLORS.white,
+    borderColor: COLORS.peach,
+  },
+  buttonIcon: {
+    width: 200,
+    height: 200,
+  },
+  buttonIconPortrait: {
+    width: 150,
+    height: 150,
+  },
+
+  /* 🎨 زخرفة سفلية */
+  bottomEmojis: {
+    position: "absolute",
+    bottom: 15,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 20,
+  },
+  bottomEmoji: {
+    fontSize: 30,
+    opacity: 0.3,
   },
 });

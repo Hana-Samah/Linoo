@@ -1,162 +1,434 @@
-import { View, StyleSheet, Image, Animated, Easing } from "react-native";
+import { View, Text, StyleSheet, Animated, Easing, Image } from "react-native";
 import { useEffect, useRef } from "react";
 import { getChildInfo } from "../storage/childStorage";
 
+// 🎨 ألوان Linoo الترابية
+const COLORS = {
+  background: '#FAF8F5',
+  cream: '#F5EFE7',
+  primary: '#7FA896',
+  secondary: '#D9956C',
+  accent: '#E8C68E',
+  sage: '#B5C9B4',
+};
+
 export default function SplashScreen({ navigation }) {
-  // أنيميشن الصورة
-  const imageScale = useRef(new Animated.Value(0.7)).current;
-  const imageOpacity = useRef(new Animated.Value(0)).current;
-
-  // أنيميشن الخلفية المتنفسة
-  const bgAnim = useRef(new Animated.Value(0)).current;
-
-  // شريط التحميل
-  const progress = useRef(new Animated.Value(0)).current;
+  // ✨ Animations
+  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoRotate = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  
+  const titleSlide = useRef(new Animated.Value(50)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  
+  const subtitleFade = useRef(new Animated.Value(0)).current;
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  
+  // ⭐ Stars animations
+  const star1 = useRef(new Animated.Value(0)).current;
+  const star2 = useRef(new Animated.Value(0)).current;
+  const star3 = useRef(new Animated.Value(0)).current;
+  
+  // 🎈 Floating animation
+  const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // ✅ حركة الصورة: تكبر + تظهر (أبطأ وأنعم)
-    Animated.parallel([
-      Animated.timing(imageScale, {
+    // 1️⃣ Logo entrance with bounce & rotation
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoRotate, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.elastic(1.5),
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // 2️⃣ Title entrance
+      Animated.parallel([
+        Animated.spring(titleSlide, {
+          toValue: 0,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // 3️⃣ Subtitle fade in
+      Animated.timing(subtitleFade, {
         toValue: 1,
-        duration: 1500, // أبطأ شوي
-        easing: Easing.out(Easing.back(1.2)), // حركة مرتدة لطيفة
-        useNativeDriver: true,
-      }),
-      Animated.timing(imageOpacity, {
-        toValue: 1,
-        duration: 1600,
+        duration: 500,
+        delay: 200,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // ✅ خلفية تتنفس (تتغير تدريجياً) - ألوان ترابية
+    // ⭐ Stars twinkling animation
+    Animated.loop(
+      Animated.stagger(200, [
+        Animated.sequence([
+          Animated.timing(star1, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(star1, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(star2, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(star2, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(star3, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(star3, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    ).start();
+
+    // 🎈 Floating animation for logo
     Animated.loop(
       Animated.sequence([
-        Animated.timing(bgAnim, {
+        Animated.timing(floatAnim, {
           toValue: 1,
-          duration: 3000, // أبطأ للهدوء
-          useNativeDriver: false,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
         }),
-        Animated.timing(bgAnim, {
+        Animated.timing(floatAnim, {
           toValue: 0,
-          duration: 3000,
-          useNativeDriver: false,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
         }),
       ])
     ).start();
 
-    // ✅ شريط التحميل
-    Animated.timing(progress, {
+    // 📊 Progress bar animation
+    Animated.timing(progressWidth, {
       toValue: 1,
-      duration: 2600,
-      easing: Easing.inOut(Easing.ease),
+      duration: 2800,
+      easing: Easing.bezier(0.4, 0.0, 0.2, 1),
       useNativeDriver: false,
     }).start();
 
+    // 🔄 Navigation logic
     const checkChild = async () => {
       const child = await getChildInfo();
-
       setTimeout(() => {
         if (child) navigation.replace("Home");
         else navigation.replace("Welcome");
-      }, 2800); // زيادة الوقت قليلاً
+      }, 3000);
     };
 
     checkChild();
   }, []);
 
-  // ✅ لون الخلفية يتحول بين الألوان الترابية من شعارك
-  const animatedBackground = bgAnim.interpolate({
+  // 🎨 Interpolations
+  const logoRotation = logoRotate.interpolate({
     inputRange: [0, 1],
-    outputRange: ["#FAF8F5", "#F5EFE7"], // من ألوانك الترابية
+    outputRange: ['0deg', '360deg'],
   });
 
-  const progressWidth = progress.interpolate({
+  const floatingTranslateY = floatAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
+    outputRange: [0, -15],
+  });
+
+  const progressBarWidth = progressWidth.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
   });
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: animatedBackground }]}>
-      
-      {/* ✅ دوائر زخرفية خلفية هادئة */}
-      <View style={styles.bgCircle1} />
-      <View style={styles.bgCircle2} />
+    <View style={styles.container}>
+      {/* 🎨 Decorative circles في الخلفية */}
+      <View style={styles.circle1} />
+      <View style={styles.circle2} />
+      <View style={styles.circle3} />
 
-      {/* ✅ صورة الأسد مع انيميشن */}
-      <Animated.Image
-        source={require("../../assets/lion.png")}
+      {/* ⭐ Animated twinkling stars */}
+      <Animated.Text style={[styles.star, styles.star1, { opacity: star1 }]}>
+        ⭐
+      </Animated.Text>
+      <Animated.Text style={[styles.star, styles.star2, { opacity: star2 }]}>
+        ⭐
+      </Animated.Text>
+      <Animated.Text style={[styles.star, styles.star3, { opacity: star3 }]}>
+        ⭐
+      </Animated.Text>
+
+      {/* 🦁 Logo مع floating animation */}
+      <Animated.View
         style={[
-          styles.lionImage,
+          styles.logoContainer,
           {
-            transform: [{ scale: imageScale }],
-            opacity: imageOpacity,
+            opacity: logoOpacity,
+            transform: [
+              { scale: logoScale },
+              { rotate: logoRotation },
+              { translateY: floatingTranslateY },
+            ],
           },
         ]}
-      />
+      >
+        <View style={styles.logoCircle}>
+          <Image 
+            source={require("../../assets/lion/lion_8.png")} 
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </View>
+        
+        {/* تأثير الإضاءة */}
+        <View style={styles.glowEffect} />
+      </Animated.View>
 
-      {/* ✅ شريط التحميل - بألوان ترابية */}
-      <View style={styles.progressBackground}>
-        <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+      {/* 📝 اسم التطبيق */}
+      <Animated.View
+        style={{
+          opacity: titleOpacity,
+          transform: [{ translateY: titleSlide }],
+        }}
+      >
+        <Text style={styles.appName}>Linoo</Text>
+      </Animated.View>
+
+      {/* 💬 العنوان الفرعي */}
+      <Animated.View style={{ opacity: subtitleFade }}>
+        <Text style={styles.subtitle}>رحلة التواصل والتعلم</Text>
+        <Text style={styles.subtitle2}>مع أصدقائنا الصغار</Text>
+      </Animated.View>
+
+      {/* 📊 شريط التحميل المحسّن */}
+      <View style={styles.loadingSection}>
+        <View style={styles.progressBackground}>
+          <Animated.View
+            style={[
+              styles.progressFill,
+              { width: progressBarWidth },
+            ]}
+          >
+            <View style={styles.progressShine} />
+          </Animated.View>
+        </View>
+        
+        <View style={styles.loadingTextContainer}>
+          <Text style={styles.loadingText}>جاري التحضير</Text>
+          <Text style={styles.loadingDots}>...</Text>
+        </View>
       </View>
 
-    </Animated.View>
+      {/* 🎈 زخارف الأسفل */}
+      <View style={styles.bottomDecor}>
+        <Text style={styles.decorEmoji}>🎈</Text>
+        <Text style={styles.decorEmoji}>🌟</Text>
+        <Text style={styles.decorEmoji}>🎨</Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
 
-  // ✅ دوائر زخرفية بألوان ترابية هادئة
-  bgCircle1: {
-    position: "absolute",
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "#E8C68E", // اللون الترابي الأصفر
-    opacity: 0.08,
-    top: -100,
-    right: -80,
+  /* 🎨 دوائر زخرفية */
+  circle1: {
+    position: 'absolute',
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: COLORS.accent,
+    opacity: 0.06,
+    top: -150,
+    right: -100,
   },
-
-  bgCircle2: {
-    position: "absolute",
+  circle2: {
+    position: 'absolute',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    backgroundColor: COLORS.primary,
+    opacity: 0.05,
+    bottom: -120,
+    left: -80,
+  },
+  circle3: {
+    position: 'absolute',
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: "#B5C9B4", // اللون الترابي الأخضر
+    backgroundColor: COLORS.sage,
     opacity: 0.08,
-    bottom: -70,
-    left: -60,
+    top: '50%',
+    left: -50,
+  },
+logoImage: {
+    width: 200,
+    height: 200,
+  },
+  /* ⭐ النجوم المتلألئة */
+  star: {
+    position: 'absolute',
+    fontSize: 24,
+  },
+  star1: {
+    top: '20%',
+    right: '15%',
+  },
+  star2: {
+    top: '25%',
+    left: '20%',
+  },
+  star3: {
+    bottom: '30%',
+    right: '25%',
   },
 
-  lionImage: {
-    width: 280, // أكبر شوي
-    height: 280,
-    resizeMode: "contain",
+  /* 🦁 الشعار */
+  logoContainer: {
+    marginBottom: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoEmoji: {
+    fontSize: 90,
+  },
+  glowEffect: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: COLORS.accent,
+    opacity: 0.15,
+  },
+
+  /* 📝 النصوص */
+  appName: {
+    fontSize: 56,
+    fontWeight: '900',
+    color: COLORS.primary,
+    marginBottom: 8,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 20,
+    color: COLORS.secondary,
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  subtitle2: {
+    fontSize: 18,
+    color: '#7A7A7A',
+    textAlign: 'center',
+    fontWeight: '500',
     marginBottom: 50,
   },
 
+  /* 📊 قسم التحميل */
+  loadingSection: {
+    width: '70%',
+    alignItems: 'center',
+  },
   progressBackground: {
-    width: 250, // أعرض شوي
-    height: 20, // أعلى شوي
-    backgroundColor: "#E8C68E", // لون ترابي فاتح
-    borderRadius: 25,
-    overflow: "hidden",
-    shadowColor: "#000",
+    width: '100%',
+    height: 24,
+    backgroundColor: COLORS.cream,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  progressShine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  loadingTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#7A7A7A',
+    fontWeight: '600',
+  },
+  loadingDots: {
+    fontSize: 18,
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
 
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#D9956C", // لون ترابي برتقالي
-    borderRadius: 25,
+  /* 🎈 الزخارف السفلية */
+  bottomDecor: {
+    position: 'absolute',
+    bottom: 40,
+    flexDirection: 'row',
+    gap: 20,
+  },
+  decorEmoji: {
+    fontSize: 28,
+    opacity: 0.3,
   },
 });

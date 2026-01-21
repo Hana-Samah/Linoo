@@ -61,7 +61,7 @@ export const speakWithFemaleVoice = async (text, options = {}) => {
       language: selectedVoice?.language || 'ar-SA',
       voice: selectedVoice?.identifier,
       pitch: 1.2,        // أعلى قليلاً (أنثوي)
-      rate: 0.85,        // أبطأ قليلاً (واضح)
+      rate: 1.00,       
       volume: 1.0,       // صوت كامل
       ...options,
     };
@@ -74,7 +74,7 @@ export const speakWithFemaleVoice = async (text, options = {}) => {
     Speech.speak(text, {
       language: 'ar',
       pitch: 1.2,
-      rate: 0.85,
+      rate: 1.00,
     });
   }
 };

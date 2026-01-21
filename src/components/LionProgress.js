@@ -19,11 +19,8 @@ export default function LionProgress({
   onPress,
   showLabel = true 
 }) {
-  // أنيميشن ظهور الأسد
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  
-  // أنيميشن الاهتزاز الخفيف عند الاكتمال
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   // صور الأسد (9 مراحل: من 0 إلى 8)
@@ -40,7 +37,6 @@ export default function LionProgress({
   };
 
   useEffect(() => {
-    // أنيميشن ظهور الصورة عند التغيير
     fadeAnim.setValue(0);
     scaleAnim.setValue(0.8);
 
@@ -58,7 +54,6 @@ export default function LionProgress({
       }),
     ]).start();
 
-    // اهتزاز خفيف (ضحكة) عند الاكتمال
     if (progress === maxProgress) {
       Animated.loop(
         Animated.sequence([
@@ -82,7 +77,7 @@ export default function LionProgress({
             duration: 100,
             useNativeDriver: true,
           }),
-          Animated.delay(3000), // وقفة قبل إعادة الاهتزاز
+          Animated.delay(3000),
         ])
       ).start();
     } else {
@@ -113,14 +108,12 @@ export default function LionProgress({
           },
         ]}
       >
-        {/* صورة الأسد */}
         <Image
           source={lionImages[progress]}
           style={styles.lionImage}
           resizeMode="contain"
         />
 
-        {/* عداد التقدم */}
         <View style={[
           styles.badge,
           progress === maxProgress && styles.badgeComplete
@@ -131,7 +124,6 @@ export default function LionProgress({
           )}
         </View>
 
-        {/* شرارات عند الاكتمال */}
         {progress === maxProgress && (
           <View style={styles.sparklesContainer}>
             <Text style={styles.sparkle}>✨</Text>
@@ -141,7 +133,6 @@ export default function LionProgress({
         )}
       </Animated.View>
 
-      {/* رسالة تشجيعية */}
       {showLabel && (
         <View style={styles.messageContainer}>
           <Text style={[
@@ -153,7 +144,6 @@ export default function LionProgress({
         </View>
       )}
 
-      {/* شريط التقدم */}
       {progress > 0 && (
         <View style={styles.progressBarContainer}>
           <View style={styles.progressBarBg}>
@@ -169,10 +159,6 @@ export default function LionProgress({
     </TouchableOpacity>
   );
 }
-
-/* =============================================
-   📝 الرسائل التحفيزية
-   ============================================= */
 
 const getMotivationalMessage = (progress, max) => {
   if (progress === 0) {
@@ -197,10 +183,6 @@ const getMotivationalMessage = (progress, max) => {
   return "رائع! استمر! 💪";
 };
 
-/* =============================================
-   🎨 التنسيقات
-   ============================================= */
-
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
@@ -215,13 +197,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  /* صورة الأسد */
   lionImage: {
     width: 130,
     height: 130,
   },
 
-  /* عداد التقدم */
   badge: {
     position: 'absolute',
     bottom: -10,
@@ -253,7 +233,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* شرارات الاحتفال */
   sparklesContainer: {
     position: 'absolute',
     top: -10,
@@ -270,7 +249,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 5,
   },
 
-  /* الرسالة التشجيعية */
   messageContainer: {
     marginTop: 15,
     paddingHorizontal: 10,
@@ -286,7 +264,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
 
-  /* شريط التقدم */
   progressBarContainer: {
     marginTop: 10,
     width: 120,

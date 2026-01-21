@@ -1,15 +1,35 @@
 /* =============================================
-   🦁 نظام شعر الأسد اليومي - Linoo
-   8 خصلات = 8 إنجازات يومية
-   كل يوم جديد = أسد أصلع
+   🦁 نظام شعر الأسد اليومي - نسخة متوازنة
+   8 خصلات = 8 إنجازات يومية (بتحكم أفضل)
    ============================================= */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const DAILY_PROGRESS_KEY = "DAILY_LION_PROGRESS";
 const LAST_RESET_DATE_KEY = "LAST_LION_RESET_DATE";
+const DAILY_ACTIONS_COUNT_KEY = "DAILY_ACTIONS_COUNT";
 
 const MAX_DAILY_PROGRESS = 8; // 8 خصلات
+
+/* =============================================
+   🎯 معايير الإنجازات المتوازنة
+   ============================================= */
+
+// عدد الإجراءات المطلوبة لكل خصلة
+const ACTIONS_PER_HAIR = {
+  AAC_WORDS: 5,          // 5 كلمات = خصلة واحدة
+  AAC_SENTENCES: 2,      // جملتان كاملتان = خصلة واحدة
+  STORY_COMPLETED: 1,    // قصة واحدة = خصلة واحدة
+  QUIZ_CORRECT: 1,       // إجابة صحيحة = خصلة واحدة
+};
+
+// الحد الأقصى للخصلات من كل نوع (منع التكرار المفرط)
+const MAX_HAIRS_PER_TYPE = {
+  AAC_WORDS: 3,          // أقصى 3 خصلات من الكلمات
+  AAC_SENTENCES: 2,      // أقصى 2 خصلة من الجمل
+  STORY_COMPLETED: 2,    // أقصى 2 خصلة من القصص
+  QUIZ_CORRECT: 2,       // أقصى 2 خصلة من الكويز
+};
 
 /* =============================================
    📊 الحصول على التقدم اليومي
@@ -28,30 +48,125 @@ export const getDailyProgress = async () => {
 };
 
 /* =============================================
-   ➕ إضافة تقدم (نمو خصلة)
+   📈 الحصول على عدد الإجراءات اليومية
    ============================================= */
 
-export const addDailyProgress = async (amount = 1, reason = "") => {
+const getDailyActionsCount = async () => {
+  try {
+    const data = await AsyncStorage.getItem(DAILY_ACTIONS_COUNT_KEY);
+    return data ? JSON.parse(data) : {
+      aacWords: 0,
+      aacSentences: 0,
+      storiesCompleted: 0,
+      quizzesCorrect: 0,
+    };
+  } catch (error) {
+    return {
+      aacWords: 0,
+      aacSentences: 0,
+      storiesCompleted: 0,
+      quizzesCorrect: 0,
+    };
+  }
+};
+
+const saveDailyActionsCount = async (counts) => {
+  try {
+    await AsyncStorage.setItem(DAILY_ACTIONS_COUNT_KEY, JSON.stringify(counts));
+  } catch (error) {
+    console.error("Error saving actions count:", error);
+  }
+};
+
+/* =============================================
+   ➕ إضافة تقدم (نمو خصلة) - مع تحكم ذكي
+   ============================================= */
+
+export const addDailyProgress = async (actionType, reason = "") => {
   try {
     await checkAndResetIfNewDay();
     
     const currentProgress = await getDailyProgress();
+    const actionCounts = await getDailyActionsCount();
     
-    // لا نتجاوز 8
+    // إذا وصل للحد الأقصى
     if (currentProgress >= MAX_DAILY_PROGRESS) {
       return {
         progress: currentProgress,
         maxReached: true,
         message: "أحسنت! أكملت كل إنجازات اليوم! 🎉",
+        hairGrown: false,
       };
     }
-    
-    const newProgress = Math.min(currentProgress + amount, MAX_DAILY_PROGRESS);
+
+    // حساب الخصلات المكتسبة من هذا النوع
+    let hairsFromThisType = 0;
+    let shouldAddHair = false;
+
+    switch (actionType) {
+      case "AAC_WORD":
+        actionCounts.aacWords += 1;
+        hairsFromThisType = Math.floor(actionCounts.aacWords / ACTIONS_PER_HAIR.AAC_WORDS);
+        
+        if (
+          actionCounts.aacWords % ACTIONS_PER_HAIR.AAC_WORDS === 0 &&
+          hairsFromThisType <= MAX_HAIRS_PER_TYPE.AAC_WORDS
+        ) {
+          shouldAddHair = true;
+        }
+        break;
+
+      case "AAC_SENTENCE":
+        actionCounts.aacSentences += 1;
+        hairsFromThisType = Math.floor(actionCounts.aacSentences / ACTIONS_PER_HAIR.AAC_SENTENCES);
+        
+        if (
+          actionCounts.aacSentences % ACTIONS_PER_HAIR.AAC_SENTENCES === 0 &&
+          hairsFromThisType <= MAX_HAIRS_PER_TYPE.AAC_SENTENCES
+        ) {
+          shouldAddHair = true;
+        }
+        break;
+
+      case "STORY_COMPLETED":
+        actionCounts.storiesCompleted += 1;
+        hairsFromThisType = actionCounts.storiesCompleted;
+        
+        if (hairsFromThisType <= MAX_HAIRS_PER_TYPE.STORY_COMPLETED) {
+          shouldAddHair = true;
+        }
+        break;
+
+      case "QUIZ_CORRECT":
+        actionCounts.quizzesCorrect += 1;
+        hairsFromThisType = actionCounts.quizzesCorrect;
+        
+        if (hairsFromThisType <= MAX_HAIRS_PER_TYPE.QUIZ_CORRECT) {
+          shouldAddHair = true;
+        }
+        break;
+    }
+
+    // حفظ العدادات
+    await saveDailyActionsCount(actionCounts);
+
+    // إذا لم يستحق خصلة جديدة
+    if (!shouldAddHair) {
+      console.log(`⏳ لم تنمو خصلة بعد - ${reason}`);
+      return {
+        progress: currentProgress,
+        hairGrown: false,
+        message: getProgressMessage(actionType, actionCounts),
+        actionsNeeded: getActionsNeeded(actionType, actionCounts),
+      };
+    }
+
+    // ✅ نمو خصلة جديدة!
+    const newProgress = Math.min(currentProgress + 1, MAX_DAILY_PROGRESS);
     await AsyncStorage.setItem(DAILY_PROGRESS_KEY, newProgress.toString());
     
     console.log(`🦁 نمت خصلة! ${newProgress}/${MAX_DAILY_PROGRESS} - السبب: ${reason}`);
     
-    // رسالة حسب التقدم
     let message = "";
     if (newProgress === MAX_DAILY_PROGRESS) {
       message = "🎉 مذهل! شعر الأسد اكتمل! أنت بطل!";
@@ -66,7 +181,7 @@ export const addDailyProgress = async (amount = 1, reason = "") => {
     return {
       progress: newProgress,
       oldProgress: currentProgress,
-      added: amount,
+      hairGrown: true,
       maxReached: newProgress === MAX_DAILY_PROGRESS,
       message,
       reason,
@@ -74,6 +189,54 @@ export const addDailyProgress = async (amount = 1, reason = "") => {
   } catch (error) {
     console.error("Error adding daily progress:", error);
     return null;
+  }
+};
+
+/* =============================================
+   📝 رسائل التقدم
+   ============================================= */
+
+const getProgressMessage = (actionType, counts) => {
+  switch (actionType) {
+    case "AAC_WORD":
+      const wordsNeeded = ACTIONS_PER_HAIR.AAC_WORDS - (counts.aacWords % ACTIONS_PER_HAIR.AAC_WORDS);
+      if (counts.aacWords >= ACTIONS_PER_HAIR.AAC_WORDS * MAX_HAIRS_PER_TYPE.AAC_WORDS) {
+        return "وصلت للحد الأقصى من الكلمات اليوم! جرب نشاط آخر 🎯";
+      }
+      return `استخدم ${wordsNeeded} كلمات أخرى لخصلة جديدة! 💬`;
+
+    case "AAC_SENTENCE":
+      const sentencesNeeded = ACTIONS_PER_HAIR.AAC_SENTENCES - (counts.aacSentences % ACTIONS_PER_HAIR.AAC_SENTENCES);
+      if (counts.aacSentences >= ACTIONS_PER_HAIR.AAC_SENTENCES * MAX_HAIRS_PER_TYPE.AAC_SENTENCES) {
+        return "وصلت للحد الأقصى من الجمل اليوم! جرب نشاط آخر 🎯";
+      }
+      return `كوّن ${sentencesNeeded} جملة أخرى لخصلة جديدة! 💪`;
+
+    case "STORY_COMPLETED":
+      if (counts.storiesCompleted >= MAX_HAIRS_PER_TYPE.STORY_COMPLETED) {
+        return "وصلت للحد الأقصى من القصص اليوم! جرب نشاط آخر 🎯";
+      }
+      return "أكمل قصة واحدة لخصلة جديدة! 📚";
+
+    case "QUIZ_CORRECT":
+      if (counts.quizzesCorrect >= MAX_HAIRS_PER_TYPE.QUIZ_CORRECT) {
+        return "وصلت للحد الأقصى من الأسئلة اليوم! جرب نشاط آخر 🎯";
+      }
+      return "أجب على سؤال بشكل صحيح لخصلة جديدة! 🎯";
+
+    default:
+      return "استمر! أنت تقوم بعمل رائع! 💪";
+  }
+};
+
+const getActionsNeeded = (actionType, counts) => {
+  switch (actionType) {
+    case "AAC_WORD":
+      return ACTIONS_PER_HAIR.AAC_WORDS - (counts.aacWords % ACTIONS_PER_HAIR.AAC_WORDS);
+    case "AAC_SENTENCE":
+      return ACTIONS_PER_HAIR.AAC_SENTENCES - (counts.aacSentences % ACTIONS_PER_HAIR.AAC_SENTENCES);
+    default:
+      return 1;
   }
 };
 
@@ -86,11 +249,16 @@ export const checkAndResetIfNewDay = async () => {
     const today = new Date().toLocaleDateString("ar-SA");
     const lastResetDate = await AsyncStorage.getItem(LAST_RESET_DATE_KEY);
     
-    // إذا يوم جديد، نصفر التقدم
     if (lastResetDate !== today) {
       console.log("🌅 يوم جديد! الأسد يبدأ أصلع...");
       await AsyncStorage.setItem(DAILY_PROGRESS_KEY, "0");
       await AsyncStorage.setItem(LAST_RESET_DATE_KEY, today);
+      await AsyncStorage.setItem(DAILY_ACTIONS_COUNT_KEY, JSON.stringify({
+        aacWords: 0,
+        aacSentences: 0,
+        storiesCompleted: 0,
+        quizzesCorrect: 0,
+      }));
       return true;
     }
     
@@ -108,6 +276,7 @@ export const checkAndResetIfNewDay = async () => {
 export const getDailyLionStats = async () => {
   try {
     const progress = await getDailyProgress();
+    const actionCounts = await getDailyActionsCount();
     const percentage = Math.round((progress / MAX_DAILY_PROGRESS) * 100);
     const remaining = MAX_DAILY_PROGRESS - progress;
     
@@ -117,6 +286,7 @@ export const getDailyLionStats = async () => {
       percentage,
       remaining,
       isComplete: progress === MAX_DAILY_PROGRESS,
+      actionCounts,
     };
   } catch (error) {
     console.error("Error getting lion stats:", error);
@@ -126,23 +296,14 @@ export const getDailyLionStats = async () => {
       percentage: 0,
       remaining: MAX_DAILY_PROGRESS,
       isComplete: false,
+      actionCounts: {
+        aacWords: 0,
+        aacSentences: 0,
+        storiesCompleted: 0,
+        quizzesCorrect: 0,
+      },
     };
   }
-};
-
-/* =============================================
-   🎯 أسباب الإنجازات (للمرجع)
-   ============================================= */
-
-export const PROGRESS_REASONS = {
-  AAC_WORD_USED: "استخدام كلمة في لوحة AAC",
-  STORY_COMPLETED: "إكمال قراءة قصة",
-  QUIZ_CORRECT: "إجابة صحيحة في الكويز",
-  SENTENCE_FORMED: "تكوين جملة كاملة (3+ كلمات)",
-  DAILY_LOGIN: "استخدام التطبيق اليوم",
-  CUSTOM_WORD_ADDED: "إضافة كلمة مخصصة",
-  STORY_QUIZ_COMPLETED: "إكمال قصة + كويز",
-  EXPLORATION: "استكشاف ميزة جديدة",
 };
 
 /* =============================================
@@ -151,7 +312,10 @@ export const PROGRESS_REASONS = {
 
 export const resetDailyProgress = async () => {
   try {
-    await AsyncStorage.setItem(DAILY_PROGRESS_KEY, "0");
+    await AsyncStorage.multiRemove([
+      DAILY_PROGRESS_KEY,
+      DAILY_ACTIONS_COUNT_KEY,
+    ]);
     console.log("🔄 تم إعادة تعيين تقدم الأسد");
     return true;
   } catch (error) {

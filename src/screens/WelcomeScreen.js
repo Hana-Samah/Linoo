@@ -12,20 +12,53 @@ import {
 } from "react-native";
 import { useEffect, useRef } from "react";
 
+// 🎨 ألوان Linoo الترابية
+const COLORS = {
+  background: '#FFF9EE',
+  card: '#FFFFFF',
+  primary: '#7FA896',
+  primarySoft: '#E8F5F2',
+  secondary: '#D9956C',
+  accent: '#E8C68E',
+  sage: '#B5C9B4',
+  textMain: '#2D3436',
+  textSub: '#636E72',
+};
+
 export default function WelcomeScreen({ navigation }) {
+  // ✨ Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const buttonScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
+    Animated.sequence([
+      // 1️⃣ Logo entrance
+      Animated.spring(logoScale, {
         toValue: 1,
-        duration: 800,
+        friction: 5,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
+      
+      // 2️⃣ Content fade & slide
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // 3️⃣ Button entrance
+      Animated.spring(buttonScale, {
+        toValue: 1,
+        friction: 6,
         useNativeDriver: true,
       }),
     ]).start();
@@ -35,117 +68,155 @@ export default function WelcomeScreen({ navigation }) {
     {
       icon: "💬",
       title: "التواصل السهل",
-      desc: "لوحة AAC بسيطة وواضحة",
-      color: "#7FA896",
+      desc: "لوحة AAC بسيطة وواضحة مع أصوات طبيعية",
+      color: COLORS.primary,
     },
     {
       icon: "📚",
       title: "قصص تفاعلية",
-      desc: "تعلم ممتع مع الصوت",
-      color: "#D9956C",
+      desc: "تعلم ممتع مع الصوت والصور المتحركة",
+      color: COLORS.secondary,
     },
     {
       icon: "⭐",
-      title: "تخصيص كامل",
-      desc: "كلمات وصور خاصة بطفلك",
-      color: "#E8C68E",
+      title: "نظام المكافآت",
+      desc: "نجوم وإنجازات لتحفيز طفلك",
+      color: COLORS.accent,
     },
     {
       icon: "🎯",
-      title: "سهل الاستخدام",
-      desc: "مصمم خصيصاً للأطفال",
-      color: "#B5C9B4",
+      title: "تخصيص كامل",
+      desc: "كلمات وصور خاصة بطفلك",
+      color: COLORS.sage,
     },
   ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FAF8F5" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* 🦁 Hero Section */}
+        <View style={styles.heroSection}>
+          <Animated.View
+            style={[
+              styles.logoContainer,
+              { transform: [{ scale: logoScale }] },
+            ]}
+          >
+            <View style={styles.logoCircle}>
+            <Text style={styles.welcomeTitle}>أهلاً بك في </Text>
+
+              <Image 
+                source={require("../../assets/Welcome.png")} 
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+        
+          </Animated.View>
+
+          <Animated.View
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
+          >
+            <Text style={styles.welcomeSubtitle}>
+              رفيق طفلك في رحلة التواصل والتعلم 🌟
+            </Text>
+          </Animated.View>
+        </View>
+
+        {/* ✨ Features Grid */}
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          <Text style={styles.sectionTitle}>✨ ماذا يقدم التطبيق؟</Text>
+          
+          <View style={styles.featuresGrid}>
+            {features.map((feature, index) => (
+              <Animated.View
+                key={index}
+                style={[
+                  styles.featureCard,
+                  {
+                    opacity: fadeAnim,
+                    transform: [
+                      {
+                        translateY: slideAnim.interpolate({
+                          inputRange: [0, 50],
+                          outputRange: [0, 50 + index * 10],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.featureIconContainer,
+                    { backgroundColor: feature.color + '20' },
+                  ]}
+                >
+                  <Text style={styles.featureIcon}>{feature.icon}</Text>
+                </View>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureDesc}>{feature.desc}</Text>
+              </Animated.View>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* 🎈 Age Info Card */}
         <Animated.View
           style={[
-            styles.content,
+            styles.ageCard,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
-          {/* الشعار والترحيب */}
-          <View style={styles.headerSection}>
-            <View style={styles.logoContainer}>
-              <Image source={require("../../assets/Welcome.png")} style={{ width: 300, height: 150 }} />
-            </View>
-          </View>
+          <Text style={styles.ageEmoji}>👶👧</Text>
+          <Text style={styles.ageText}>مناسب للأطفال من عمر 2 إلى 8 سنوات</Text>
+        </Animated.View>
 
-          {/* الترحيب */}
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>مرحباً بك!</Text>
-            <Text style={styles.welcomeText}>
-              تطبيق مصمم خصيصاً لمساعدة الأطفال على التواصل والتعلم بطريقة ممتعة
-            </Text>
-          </View>
-
-          {/* المميزات */}
-          <View style={styles.featuresSection}>
-            <Text style={styles.sectionTitle}>ماذا يقدم التطبيق؟</Text>
-            
-            <View style={styles.featuresGrid}>
-              {features.map((feature, index) => (
-                <Animated.View
-                  key={index}
-                  style={[
-                    styles.featureCard,
-                    {
-                      opacity: fadeAnim,
-                      transform: [
-                        {
-                          translateY: slideAnim.interpolate({
-                            inputRange: [0, 50],
-                            outputRange: [0, 50 + index * 10],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.featureIconContainer,
-                      { backgroundColor: feature.color + "20" },
-                    ]}
-                  >
-                    <Text style={styles.featureIcon}>{feature.icon}</Text>
-                  </View>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDesc}>{feature.desc}</Text>
-                </Animated.View>
-              ))}
-            </View>
-          </View>
-
-          {/* زر البدء */}
+        {/* 🚀 Start Button */}
+        <Animated.View
+          style={{
+            transform: [{ scale: buttonScale }],
+          }}
+        >
           <TouchableOpacity
             style={styles.startButton}
             onPress={() => navigation.replace("ChildInfo")}
             activeOpacity={0.9}
           >
-            <Text style={styles.startText}>ابدأ الآن</Text>
+            <View style={styles.buttonContent}>
+              <Text style={styles.startIcon}>🚀</Text>
+              <Text style={styles.startText}>لنبدأ الرحلة</Text>
+            </View>
             <View style={styles.arrowContainer}>
               <Text style={styles.arrow}>←</Text>
             </View>
           </TouchableOpacity>
 
-          {/* نص إضافي */}
+          {/* Footer text */}
           <Text style={styles.footerText}>
-            رحلة التواصل والتعلم تبدأ هنا ✨
+            رحلة التواصل والتعلم تبدأ الآن ✨
           </Text>
         </Animated.View>
+
+        {/* Bottom spacing */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -154,173 +225,219 @@ export default function WelcomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff9eeff",
+    backgroundColor: COLORS.background,
   },
   container: {
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 20 : 20,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 20,
     paddingBottom: 40,
   },
-  content: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
 
-  /* ====== الشعار والترحيب ====== */
-  headerSection: {
-    alignItems: "center",
+  /* 🦁 Hero Section */
+  heroSection: {
+    alignItems: 'center',
     marginBottom: 32,
   },
   logoContainer: {
-    width: 300,
-    height: 150,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    position: 'relative',
   },
-  logo: {
-    fontSize: 60,
-  },
-  appName: {
-    fontSize: 42,
-    fontWeight: "800",
-    color: "#4A6B6F",
-    marginBottom: 8,
-    letterSpacing: 1,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#7A7A7A",
-    textAlign: "center",
-  },
+  logoImage: {
+    width: 250,
+    height: 250,
+    marginBottom: -52,
+    marginTop: -60,
 
-  /* ====== قسم الترحيب ====== */
-  welcomeSection: {
-    marginBottom: 32,
-    paddingHorizontal: 8,
+  },
+  logoEmoji: {
+    fontSize: 70,
+  },
+  starDecor: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  miniStar: {
+    fontSize: 20,
   },
   welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#4A6B6F",
-    marginBottom: 12,
-    textAlign: "center",
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+    letterSpacing: 0.5,
   },
-  welcomeText: {
+  welcomeSubtitle: {
     fontSize: 17,
-    lineHeight: 26,
-    color: "#5A5A5A",
-    textAlign: "center",
+    color: COLORS.textSub,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 
-  /* ====== قسم المميزات ====== */
-  featuresSection: {
+  /* 💡 About Card */
+  aboutCard: {
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: 24,
+    padding: 20,
     marginBottom: 32,
+    borderWidth: 2,
+    borderColor: COLORS.primary + '40',
   },
+  aboutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  aboutIcon: {
+    fontSize: 32,
+    marginRight: 10,
+  },
+  aboutTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  aboutText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: COLORS.textSub,
+  },
+
+  /* ✨ Features Section */
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#4A6B6F",
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.textMain,
     marginBottom: 20,
-    textAlign: "center",
+    textAlign: 'center',
   },
   featuresGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 16,
+    marginBottom: 32,
   },
   featureCard: {
-    width: "48%",
-    backgroundColor: "#FFFFFF",
+    width: '48%',
+    backgroundColor: COLORS.card,
     borderRadius: 20,
     padding: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    minHeight: 160,
-    justifyContent: "space-between",
+    shadowRadius: 10,
+    elevation: 5,
+    minHeight: 170,
+    justifyContent: 'space-between',
   },
   featureIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 12,
   },
   featureIcon: {
-    fontSize: 36,
+    fontSize: 38,
   },
   featureTitle: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#4A6B6F",
-    textAlign: "center",
+    fontWeight: '700',
+    color: COLORS.textMain,
+    textAlign: 'center',
     marginBottom: 6,
   },
   featureDesc: {
     fontSize: 13,
-    color: "#7A7A7A",
-    textAlign: "center",
+    color: COLORS.textSub,
+    textAlign: 'center',
     lineHeight: 18,
   },
 
-  /* ====== زر البدء ====== */
-  startButton: {
-    backgroundColor: "#7FA896",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: "#7FA896",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  /* 🎈 Age Card */
+  ageCard: {
+    backgroundColor: COLORS.accent + '30',
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
   },
-  startText: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "700",
+  ageEmoji: {
+    fontSize: 32,
     marginRight: 12,
   },
-  arrowContainer: {
-    width: 32,
-    height: 32,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  arrow: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "bold",
+  ageText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textMain,
+    flex: 1,
   },
 
-  /* ====== النص السفلي ====== */
+  /* 🚀 Start Button */
+  startButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    marginBottom: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  startIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  startText: {
+    color: COLORS.card,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  arrowContainer: {
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrow: {
+    color: COLORS.card,
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+
+  /* 📝 Footer */
   footerText: {
     fontSize: 15,
-    color: "#9A9A9A",
-    textAlign: "center",
-    marginTop: 8,
+    color: COLORS.textSub,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+
+  /* Spacing */
+  bottomSpacer: {
+    height: 20,
   },
 });

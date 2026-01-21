@@ -17,8 +17,6 @@ import ChildProfileScreen from "./src/screens/ChildProfileScreen";
 import StoryReaderScreen from "./src/screens/StoryReaderScreen"; 
 import QuizScreen from './src/screens/QuizScreen';
 import StatisticsScreen from './src/screens/StatisticsScreen';
-import TransitionScreen from './src/screens/TransitionScreen'; // ✅ إضافة
-
 
 const Stack = createNativeStackNavigator();
 I18nManager.allowRTL(true);
@@ -44,7 +42,6 @@ export default function App() {
         <Stack.Screen name="StoryReader" component={StoryReaderScreen} />
         <Stack.Screen name="Quiz" component={QuizScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Statistics" component={StatisticsScreen} options={{ headerShown: false }}/>
-        <Stack.Screen name="Transition" component={TransitionScreen} options={{ headerShown: false,animation: 'fade',}}  />
       </Stack.Navigator>
     </NavigationContainer>
   );

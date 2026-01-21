@@ -6,17 +6,35 @@ import {
   ScrollView,
   Image,
   Animated,
+  Dimensions,
+  Platform,
 } from "react-native";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as Speech from "expo-speech";
 import { Audio } from "expo-av";
 import { getWords } from "../storage/wordsStorage";
 import { getCategories } from "../storage/categoriesStorage";
 import { trackWordUsage } from "../storage/wordsTracking";
-import { addStars, updateDailyStreak, checkAchievements } from "../storage/rewardsTracking";
-import { addDailyProgress, PROGRESS_REASONS } from "../storage/dailyLionProgress";
+import {
+  addStars,
+  updateDailyStreak,
+  checkAchievements,
+} from "../storage/rewardsTracking";
+import {
+  addDailyProgress,
+  PROGRESS_REASONS,
+} from "../storage/dailyLionProgress";
 import { useFocusEffect } from "@react-navigation/native";
+import { COLORS } from "../styles/colors";
+
+const icons = {
+  home: require("../../assets/home-icon.png"),
+  speaker: require("../../assets/speaker-icon.png"),
+  backspace: require("../../assets/backspace-icon.png"),
+  clear: require("../../assets/clear-icon.png"),
+  star: require("../../assets/lion/lion_8.png"),
+};
 
 let currentSound = null;
 
@@ -28,14 +46,26 @@ export default function AACScreen({ navigation }) {
   const [pressedWord, setPressedWord] = useState(null);
   const [showStars, setShowStars] = useState(false);
   const [starsEarned, setStarsEarned] = useState(0);
+  const [screenDimensions, setScreenDimensions] = useState(
+    Dimensions.get("window")
+  );
 
   const starsAnim = useRef(new Animated.Value(0)).current;
 
+  // تحديد الوضع (عمودي أو أفقي)
+  const isPortrait = screenDimensions.height > screenDimensions.width;
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", ({ window }) => {
+      setScreenDimensions(window);
+    });
+    return () => subscription?.remove();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.LANDSCAPE
-      );
+      // فتح جميع الاتجاهات
+      ScreenOrientation.unlockAsync();
 
       const loadData = async () => {
         const storedWords = await getWords();
@@ -88,17 +118,20 @@ export default function AACScreen({ navigation }) {
     try {
       await trackWordUsage(word.id, word.text);
       const result = await addStars(1, `استخدام كلمة: ${word.text}`);
-      
-      // 🦁 إضافة تقدم يومي عند استخدام كلمة
-      const progressResult = await addDailyProgress(1, PROGRESS_REASONS.AAC_WORD_USED);
-      if (progressResult && !progressResult.maxReached) {
-        console.log(`🦁 ${progressResult.message}`);
+
+      const progressResult = await addDailyProgress("AAC_WORD", "استخدام كلمة");
+      if (progressResult) {
+        if (progressResult.hairGrown) {
+          console.log(`🦁 ${progressResult.message}`);
+        } else if (progressResult.actionsNeeded) {
+          console.log(`⏳ ${progressResult.message}`);
+        }
       }
-      
+
       const allWords = await getWords();
-      const uniqueWordsUsed = new Set(allWords.map(w => w.id)).size;
+      const uniqueWordsUsed = new Set(allWords.map((w) => w.id)).size;
       await checkAchievements("word", uniqueWordsUsed);
-      
+
       if (result) {
         showStarsAnimation(result.starsAdded);
       }
@@ -140,7 +173,7 @@ export default function AACScreen({ navigation }) {
         }
       });
     } else {
-      Speech.speak(word.text, { language: "ar", rate: 0.55, pitch: 1.2 });
+      Speech.speak(word.text, { language: "ar", rate: 1.0, pitch: 1.2 });
     }
   };
 
@@ -165,7 +198,7 @@ export default function AACScreen({ navigation }) {
         if (word.useTTS) {
           Speech.speak(word.text, {
             language: "ar",
-            rate: 0.55,
+            rate: 1.0,
             pitch: 1.2,
             onDone: resolve,
           });
@@ -189,7 +222,7 @@ export default function AACScreen({ navigation }) {
         } else {
           Speech.speak(word.text, {
             language: "ar",
-            rate: 0.55,
+            rate: 1.0,
             pitch: 1.2,
             onDone: resolve,
           });
@@ -197,20 +230,32 @@ export default function AACScreen({ navigation }) {
       });
 
       if (i < sentence.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 10));
       }
     }
-    
-    // 🦁 مكافأة إضافية لتكوين جملة كاملة
-    if (sentence.length >= 3) {
-      await addStars(3, "تكوين جملة كاملة");
-      showStarsAnimation(3);
-      await addDailyProgress(1, PROGRESS_REASONS.SENTENCE_FORMED);
+
+    const progressResult = await addDailyProgress(
+      "AAC_SENTENCE",
+      "تكوين جملة كاملة"
+    );
+    if (progressResult && progressResult.hairGrown) {
+      console.log(`🦁 ${progressResult.message}`);
     }
   };
 
+  const filteredWords = words.filter((w) => w.category === selectedCategory);
+
   return (
     <View style={styles.container}>
+      {/* 🎨 خلفية ترابية متحركة */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.floatingShape, styles.shape1]} />
+        <View style={[styles.floatingShape, styles.shape2]} />
+        <View style={[styles.floatingShape, styles.shape3]} />
+        <View style={[styles.floatingShape, styles.shape4]} />
+      </View>
+
+      {/* نافذة النجوم المنبثقة */}
       {showStars && (
         <Animated.View
           style={[
@@ -234,147 +279,102 @@ export default function AACScreen({ navigation }) {
             },
           ]}
         >
-          <Text style={styles.starsText}>+{starsEarned} ⭐</Text>
+          <Text style={styles.starsText}>+{starsEarned} </Text>
+          <Image source={icons.star} style={styles.starIcon} />
         </Animated.View>
       )}
 
-      <View style={styles.header}>
+      {/* الصف العلوي */}
+      <View style={[styles.topBar, isPortrait && styles.topBarPortrait]}>
+        {/* زر الرجوع */}
         <TouchableOpacity
           onPress={() => navigation.navigate("Home")}
           style={styles.homeButton}
         >
-          <Text style={styles.homeIcon}>🏠</Text>
+          <Image source={icons.home} style={styles.homeIcon} />
         </TouchableOpacity>
 
-        <View style={styles.sentenceBar}>
-          <ScrollView
-            horizontal
-            contentContainerStyle={styles.sentenceScroll}
-            showsHorizontalScrollIndicator={false}
-          >
-            {sentence.length === 0 ? (
-              <View style={styles.emptyMessage}>
-                <Text style={styles.emptyIcon}>👆</Text>
-                <Text style={styles.emptyText}>اختر كلمات</Text>
-              </View>
-            ) : (
-              sentence.map((w, i) => (
-                <View key={i} style={styles.sentenceWord}>
-                  {w.imageUri && (
-                    <Image
-                      source={{ uri: w.imageUri }}
-                      style={styles.sentenceImage}
-                    />
-                  )}
-                  <Text style={styles.sentenceText} numberOfLines={1}>
-                    {w.text}
-                  </Text>
+        {/* شريط الجملة */}
+        <View style={[styles.sentenceWrapper, isPortrait && styles.sentenceWrapperPortrait]}>
+          <View style={[styles.sentenceContainer, isPortrait && styles.sentenceContainerPortrait]}>
+            <ScrollView
+              horizontal
+              contentContainerStyle={styles.sentenceScroll}
+              showsHorizontalScrollIndicator={false}
+            >
+              {sentence.length === 0 ? (
+                <View style={styles.emptyMessage}>
+                  <Text style={styles.emptyText}>اختر كلمات لتكوين جملة</Text>
                 </View>
-              ))
-            )}
-          </ScrollView>
-        </View>
-
-        <View style={styles.controls}>
-          <TouchableOpacity
-            onPress={speakSentence}
-            style={[
-              styles.controlButton,
-              styles.speakButton,
-              sentence.length === 0 && styles.buttonDisabled,
-            ]}
-            disabled={sentence.length === 0}
-          >
-            <Text style={styles.controlIcon}>🔊</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setSentence(sentence.slice(0, -1))}
-            style={[
-              styles.controlButton,
-              styles.backspaceButton,
-              sentence.length === 0 && styles.buttonDisabled,
-            ]}
-            disabled={sentence.length === 0}
-          >
-            <Text style={styles.controlIcon}>⌫</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setSentence([])}
-            style={[
-              styles.controlButton,
-              styles.clearButton,
-              sentence.length === 0 && styles.buttonDisabled,
-            ]}
-            disabled={sentence.length === 0}
-          >
-            <Text style={styles.controlIcon}>🗑</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.mainContent}>
-        <View style={styles.wordsArea}>
-          <ScrollView
-            contentContainerStyle={styles.wordsGrid}
-            showsVerticalScrollIndicator={false}
-          >
-            {words.filter((w) => w.category === selectedCategory).length ===
-            0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateIcon}>🔍</Text>
-                <Text style={styles.emptyStateText}>لا توجد كلمات</Text>
-              </View>
-            ) : (
-              words
-                .filter((w) => w.category === selectedCategory)
-                .map((word) => (
-                  <TouchableOpacity
-                    key={word.id}
-                    style={[
-                      styles.wordCard,
-                      pressedWord === word.id && styles.wordCardPressed,
-                    ]}
-                    onPress={() => playWordAudio(word)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={styles.wordImageContainer}>
-                      {word.imageUri ? (
+              ) : (
+                sentence.map((w, i) => (
+                  <View key={i} style={[styles.sentenceWord, isPortrait && styles.sentenceWordPortrait]}>
+                    <View style={styles.sentenceImageContainer}>
+                      {w.imageUri ? (
                         <Image
-                          source={{ uri: word.imageUri }}
-                          style={styles.wordImage}
+                          source={{ uri: w.imageUri }}
+                          style={styles.sentenceImage}
                         />
                       ) : (
-                        <View style={styles.wordPlaceholder}>
-                          <Text style={styles.placeholderEmoji}>💬</Text>
+                        <View style={styles.sentencePlaceholder}>
+                          <Text style={styles.placeholderText}>صورة</Text>
                         </View>
                       )}
                     </View>
-                    <View style={styles.wordLabel}>
-                      <Text style={styles.wordText} numberOfLines={2}>
-                        {word.text}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                    <Text style={styles.sentenceText} numberOfLines={2}>
+                      {w.text}
+                    </Text>
+                  </View>
                 ))
-            )}
-          </ScrollView>
+              )}
+            </ScrollView>
+          </View>
+
+          {/* زر النطق */}
+          <TouchableOpacity
+            onPress={speakSentence}
+            disabled={sentence.length === 0}
+            style={[
+              styles.speakButton,
+              sentence.length === 0 && styles.buttonDisabled,
+            ]}
+          >
+            <Image source={icons.speaker} style={styles.speakIcon} />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.categoriesPanel}>
-          <ScrollView
+        {/* زر المسح */}
+        <TouchableOpacity
+          onPress={() => setSentence([])}
+          disabled={sentence.length === 0}
+          style={[
+            styles.clearButton,
+            sentence.length === 0 && styles.buttonDisabled,
+          ]}
+        >
+          <Image source={icons.clear} style={styles.clearIcon} />
+        </TouchableOpacity>
+      </View>
+
+      {/* المحتوى الرئيسي */}
+      <View style={[styles.mainContent, isPortrait && styles.mainContentPortrait]}>
+        {/* لوحة الفئات */}
+        <View style={[styles.categoriesPanel, isPortrait && styles.categoriesPanelPortrait]}>
+          <ScrollView 
+            style={styles.categoriesList}
+            horizontal={isPortrait}
+            showsHorizontalScrollIndicator={false}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesList}
           >
             {categories.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
+                onPress={() => setSelectedCategory(cat.id)}
                 style={[
                   styles.categoryButton,
+                  isPortrait && styles.categoryButtonPortrait,
                   selectedCategory === cat.id && styles.categoryActive,
                 ]}
-                onPress={() => setSelectedCategory(cat.id)}
               >
                 <View style={styles.categoryIconContainer}>
                   {cat.imageUri ? (
@@ -383,7 +383,7 @@ export default function AACScreen({ navigation }) {
                       style={styles.categoryImage}
                     />
                   ) : (
-                    <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+                    <Text style={styles.categoryEmoji}>{cat.icon || "📁"}</Text>
                   )}
                 </View>
                 <Text
@@ -399,6 +399,51 @@ export default function AACScreen({ navigation }) {
             ))}
           </ScrollView>
         </View>
+
+        {/* منطقة الكلمات */}
+        <View style={styles.wordsArea}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.wordsGrid}>
+              {filteredWords.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>
+                    لا توجد كلمات في هذه الفئة
+                  </Text>
+                </View>
+              ) : (
+                filteredWords.map((word) => (
+                  <TouchableOpacity
+                    key={word.id}
+                    onPress={() => playWordAudio(word)}
+                    style={[
+                      styles.wordCard,
+                      isPortrait && styles.wordCardPortrait,
+                      pressedWord === word.id && styles.wordCardPressed,
+                    ]}
+                  >
+                    <View style={styles.wordImageContainer}>
+                      {word.imageUri ? (
+                        <Image
+                          source={{ uri: word.imageUri }}
+                          style={styles.wordImage}
+                        />
+                      ) : (
+                        <View style={styles.wordPlaceholder}>
+                          <Text style={styles.placeholderText}>صورة</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.wordLabel}>
+                      <Text style={styles.wordText} numberOfLines={2}>
+                        {word.text}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </ScrollView>
+        </View>
       </View>
     </View>
   );
@@ -407,154 +452,355 @@ export default function AACScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FAF8F5",
+    backgroundColor: COLORS.background,
   },
 
+  /* 🎨 خلفية ترابية */
+  backgroundPattern: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  floatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
+  },
+  shape1: {
+    width: 200,
+    height: 200,
+    backgroundColor: COLORS.primary.green,
+    top: -50,
+    right: -60,
+  },
+  shape2: {
+    width: 150,
+    height: 150,
+    backgroundColor: COLORS.secondary.orange,
+    bottom: -40,
+    left: -50,
+  },
+  shape3: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.primary.teal,
+    top: "30%",
+    left: -30,
+  },
+  shape4: {
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.secondary.peach,
+    bottom: "25%",
+    right: -20,
+  },
+
+  // نافذة النجوم
   starsPopup: {
     position: "absolute",
     top: "40%",
-    left: "50%",
-    marginLeft: -75,
-    zIndex: 1000,
-    backgroundColor: "#FFD700",
+    alignSelf: "center",
+    backgroundColor: COLORS.neutral.white,
     paddingHorizontal: 30,
-    paddingVertical: 15,
+    paddingVertical: 20,
     borderRadius: 25,
-    borderWidth: 4,
-    borderColor: "#FFF",
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 1000,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowRadius: 15,
     elevation: 15,
+    borderWidth: 4,
+    borderColor: COLORS.secondary.yellow,
   },
   starsText: {
     fontSize: 32,
-    fontWeight: "bold",
-    color: "#FFF",
-    textAlign: "center",
+    fontWeight: "900",
+    color: COLORS.secondary.orange,
+    marginRight: 10,
+  },
+  starIcon: {
+    width: 40,
+    height: 40,
   },
 
-  header: {
+  // الصف العلوي
+  topBar: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#7FA896",
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 6,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    padding: 15,
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
+    gap: 12,
   },
+  topBarPortrait: {
+    paddingTop: Platform.OS === "ios" ? 60 : 30,
+    paddingHorizontal: 10,
+  },
+
+  // زر الرجوع
   homeButton: {
-    width: 65,
-    height: 65,
-    borderRadius: 32,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary.teal,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
   },
   homeIcon: {
-    fontSize: 36,
+    width: 32,
+    height: 32,
+    tintColor: COLORS.neutral.white,
   },
 
-  sentenceBar: {
+  // شريط الجملة
+  sentenceWrapper: {
     flex: 1,
-    height: 65,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 15,
-    marginRight: 12,
-    paddingHorizontal: 12,
-    borderWidth: 3,
-    borderColor: "#E8C68E",
+    alignItems: "center",
+  },
+  sentenceWrapperPortrait: {
+    flex: 1,
+  },
+  sentenceContainer: {
+    width: "100%",
+    height: 180,
+    backgroundColor: COLORS.primary.sage,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 60,
+    borderBottomLeftRadius: 60,
+    alignItems: "center",
+    paddingHorizontal: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+    marginTop: -40,
+    overflow: "hidden",
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
+  },
+  sentenceContainerPortrait: {
+    height: 140,
+    borderBottomRightRadius: 45,
+    borderBottomLeftRadius: 45,
+    marginTop: -30,
   },
   sentenceScroll: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingVertical: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    minHeight: 130,
   },
   emptyMessage: {
     flexDirection: "row",
     alignItems: "center",
-    opacity: 0.4,
-  },
-  emptyIcon: {
-    fontSize: 28,
-    marginLeft: 8,
+    justifyContent: "center",
+    flex: 1,
   },
   emptyText: {
-    fontSize: 18,
-    color: "#7A7A7A",
-    fontWeight: "600",
+    fontSize: 16,
+    color: COLORS.neutral.white,
+    fontWeight: "700",
   },
   sentenceWord: {
     flexDirection: "column",
     alignItems: "center",
-    backgroundColor: "#E8C68E",
-    borderRadius: 12,
-    padding: 6,
-    marginHorizontal: 4,
-    minWidth: 65,
-    borderWidth: 2,
-    borderColor: "#D9B57B",
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 20,
+    overflow: "hidden",
+    marginHorizontal: 5,
+    width: 120,
+    height: 115,
+    borderWidth: 3,
+    borderColor: COLORS.primary.green,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sentenceWordPortrait: {
+    width: 100,
+    height: 100,
+  },
+  sentenceImageContainer: {
+    width: "100%",
+    flex: 1,
+    backgroundColor: COLORS.neutral.cream,
   },
   sentenceImage: {
-    width: 35,
-    height: 35,
-    borderRadius: 8,
-    marginBottom: 3,
+    width: "100%",
+    height: "100%",
+  },
+  sentencePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.neutral.cream,
   },
   sentenceText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#4A4A4A",
+    color: COLORS.text.primary,
     textAlign: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    minHeight: 35,
+    backgroundColor: COLORS.neutral.white,
+    borderTopWidth: 2,
+    borderTopColor: COLORS.primary.green,
   },
 
-  controls: {
-    flexDirection: "row",
-  },
-  controlButton: {
-    width: 65,
-    height: 65,
-    borderRadius: 32,
+  // زر النطق
+  speakButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: COLORS.secondary.orange,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
+    borderWidth: 5,
+    borderColor: COLORS.neutral.white,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+    marginTop: 15,
   },
-  speakButton: {
-    backgroundColor: "#5B8A8F",
+  speakIcon: {
+    width: 34,
+    height: 34,
+    tintColor: COLORS.neutral.white,
   },
-  backspaceButton: {
-    backgroundColor: "#D9956C",
-  },
+
+  // زر المسح
   clearButton: {
-    backgroundColor: "#B87B5B",
+    borderWidth: 5,
+    borderColor: COLORS.neutral.white,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary.darkTeal,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
   },
+  clearIcon: {
+    width: 28,
+    height: 28,
+    tintColor: COLORS.neutral.white,
+  },
+
   buttonDisabled: {
     opacity: 0.4,
   },
-  controlIcon: {
-    fontSize: 32,
-  },
 
+  // المحتوى الرئيسي
   mainContent: {
     flex: 1,
     flexDirection: "row",
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 15,
+  },
+  mainContentPortrait: {
+    flexDirection: "column",
+    paddingHorizontal: 10,
+    paddingTop: 10,
   },
 
+  // لوحة الفئات
+  categoriesPanel: {
+    width: 110,
+    backgroundColor: "transparent",
+    marginRight: 15,
+  },
+  categoriesPanelPortrait: {
+    width: "100%",
+    height: 120,
+    marginRight: 0,
+    marginBottom: 10,
+  },
+  categoriesList: {
+    paddingVertical: 5,
+  },
+  categoryButton: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    marginVertical: 6,
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: COLORS.neutral.cream,
+    minHeight: 95,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  categoryButtonPortrait: {
+    minWidth: 100,
+    minHeight: 100,
+    marginHorizontal: 6,
+    marginVertical: 0,
+    paddingVertical: 10,
+  },
+  categoryActive: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.primary.green,
+    shadowColor: COLORS.primary.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    transform: [{ scale: 1.05 }],
+  },
+  categoryIconContainer: {
+    marginBottom: 6,
+  },
+  categoryImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  categoryEmoji: {
+    fontSize: 36,
+  },
+  categoryText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.text.primary,
+    textAlign: "center",
+  },
+  categoryTextActive: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.primary.green,
+  },
+
+  // منطقة الكلمات
   wordsArea: {
     flex: 1,
-    padding: 15,
   },
   wordsGrid: {
     flexDirection: "row",
@@ -567,39 +813,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 60,
   },
-  emptyStateIcon: {
-    fontSize: 80,
-    opacity: 0.3,
-    marginBottom: 10,
-  },
   emptyStateText: {
-    fontSize: 20,
-    color: "#9A9A9A",
+    fontSize: 18,
+    color: COLORS.text.light,
     fontWeight: "600",
   },
 
+  // بطاقات الكلمات
   wordCard: {
-    width: 155,
-    height: 165,
-    margin: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
+    width: 125,
+    height: 140,
+    margin: 7,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 20,
     overflow: "hidden",
-    borderWidth: 5,
-    borderColor: "#E0E0E0",
+    borderWidth: 3,
+    borderColor: COLORS.neutral.cream,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  wordCardPortrait: {
+    width: "45%",
+    maxWidth: 160,
+    height: 160,
+    margin: 5,
   },
   wordCardPressed: {
-    borderColor: "#7FA896",
+    borderColor: COLORS.primary.green,
     transform: [{ scale: 0.95 }],
+    shadowOpacity: 0.3,
   },
   wordImageContainer: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: COLORS.neutral.cream,
   },
   wordImage: {
     width: "100%",
@@ -610,76 +859,27 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F0F0F0",
+    backgroundColor: COLORS.neutral.cream,
   },
-  placeholderEmoji: {
-    fontSize: 60,
+  placeholderText: {
+    fontSize: 14,
+    color: COLORS.text.light,
+    fontWeight: "600",
   },
   wordLabel: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.neutral.white,
     paddingVertical: 8,
     paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 45,
+    minHeight: 40,
+    borderTopWidth: 2,
+    borderTopColor: COLORS.neutral.cream,
   },
   wordText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#4A4A4A",
-    textAlign: "center",
-  },
-
-  categoriesPanel: {
-    width: 140,
-    backgroundColor: "#B5C9B4",
-    borderLeftWidth: 4,
-    borderLeftColor: "#9AB399",
-  },
-  categoriesList: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  categoryButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    marginVertical: 8,
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "transparent",
-    minHeight: 100,
-  },
-  categoryActive: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#7FA896",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  categoryIconContainer: {
-    marginBottom: 6,
-  },
-  categoryImage: {
-    width: 55,
-    height: 55,
-    borderRadius: 27,
-  },
-  categoryEmoji: {
-    fontSize: 45,
-  },
-  categoryText: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#4A6B6F",
-    textAlign: "center",
-  },
-  categoryTextActive: {
-    fontSize: 14,
     fontWeight: "700",
-    color: "#4A6B6F",
+    color: COLORS.text.primary,
+    textAlign: "center",
   },
 });
