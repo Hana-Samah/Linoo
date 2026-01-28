@@ -128,28 +128,12 @@ export const ACHIEVEMENTS_LIST = {
     stars: 5,
     type: "word",
   },
-  word_explorer: {
-    id: "word_explorer",
-    name: "مستكشف الكلمات",
-    description: "استخدمت 25 كلمة مختلفة",
-    icon: "🔍",
-    stars: 10,
-    type: "word",
-  },
   
   // إنجازات القصص
-  first_story: {
-    id: "first_story",
-    name: "قارئ مبتدئ",
-    description: "أنهيت أول قصة",
-    icon: "📖",
-    stars: 5,
-    type: "story",
-  },
   story_lover: {
     id: "story_lover",
     name: "محب القصص",
-    description: "أنهيت 5 قصص",
+    description: "أنهيت 4 قصص",
     icon: "📚",
     stars: 15,
     type: "story",
@@ -159,7 +143,7 @@ export const ACHIEVEMENTS_LIST = {
   quiz_master: {
     id: "quiz_master",
     name: "بطل الأسئلة",
-    description: "أجبت على 10 أسئلة بشكل صحيح",
+    description: "أجبت على 4 أسئلة بشكل صحيح",
     icon: "🎯",
     stars: 20,
     type: "quiz",
@@ -222,13 +206,7 @@ export const unlockAchievement = async (achievementId, customData = null) => {
     if (achievement.stars) {
       await addStars(achievement.stars, `إنجاز: ${achievement.name}`);
     }
-    
-    // صوت تشجيعي
-    Speech.speak(`مبروك! حصلت على إنجاز ${achievement.name}!`, {
-      language: "ar",
-      pitch: 1.4,
-      rate: 0.6,
-    });
+
     
     console.log(`🏅 إنجاز جديد: ${achievement.name}`);
     
@@ -244,16 +222,15 @@ export const checkAchievements = async (type, count) => {
   
   if (type === "word") {
     if (count === 1) newAchievements.push(await unlockAchievement("first_word"));
-    if (count === 25) newAchievements.push(await unlockAchievement("word_explorer"));
   }
   
   if (type === "story") {
     if (count === 1) newAchievements.push(await unlockAchievement("first_story"));
-    if (count === 5) newAchievements.push(await unlockAchievement("story_lover"));
+    if (count === 4) newAchievements.push(await unlockAchievement("story_lover"));
   }
   
   if (type === "quiz") {
-    if (count === 10) newAchievements.push(await unlockAchievement("quiz_master"));
+    if (count === 4) newAchievements.push(await unlockAchievement("quiz_master"));
   }
   
   return newAchievements.filter(a => a !== null);

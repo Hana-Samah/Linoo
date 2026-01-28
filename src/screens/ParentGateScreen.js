@@ -6,21 +6,44 @@ import {
   TouchableOpacity,
   Modal,
   Animated,
-  useWindowDimensions,
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { COLORS } from "../styles/colors";
 
 export default function ParentGateScreen({ navigation }) {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
+  const [screenDimensions, setScreenDimensions] = useState(
+    Dimensions.get("window")
+  );
+  const isPortrait = screenDimensions.height > screenDimensions.width;
 
   const [modalVisible, setModalVisible] = useState(true);
   const [question, setQuestion] = useState(generateQuestion());
   const [answer, setAnswer] = useState("");
-  const [attempts, setAttempts] = useState(0);
   const [errorShake, setErrorShake] = useState(false);
 
   const shakeAnimation = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", ({ window }) => {
+      setScreenDimensions(window);
+    });
+    return () => subscription?.remove();
+  }, []);
+
+  useEffect(() => {
+    if (modalVisible) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [modalVisible]);
 
   /* ===== توليد سؤال عشوائي ===== */
   function generateQuestion() {
@@ -53,303 +76,495 @@ export default function ParentGateScreen({ navigation }) {
     setErrorShake(true);
     Animated.sequence([
       Animated.timing(shakeAnimation, {
-        toValue: 8,
-        duration: 40,
+        toValue: 10,
+        duration: 50,
         useNativeDriver: true,
       }),
       Animated.timing(shakeAnimation, {
-        toValue: -8,
-        duration: 40,
+        toValue: -10,
+        duration: 50,
         useNativeDriver: true,
       }),
       Animated.timing(shakeAnimation, {
-        toValue: 8,
-        duration: 40,
+        toValue: 10,
+        duration: 50,
         useNativeDriver: true,
       }),
       Animated.timing(shakeAnimation, {
         toValue: 0,
-        duration: 40,
+        duration: 50,
         useNativeDriver: true,
       }),
-    ]).start(() => setErrorShake(false));
+    ]).start(() => {
+      setErrorShake(false);
+      // بعد الاهتزاز، إغلاق النافذة والرجوع للصفحة الرئيسية
+      setTimeout(() => {
+        Animated.timing(scaleAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setModalVisible(false);
+          navigation.navigate("Home");
+        });
+      }, 500);
+    });
   };
 
   const checkAnswer = () => {
     if (parseInt(answer) === question.answer) {
-      setModalVisible(false);
-      setTimeout(() => navigation.navigate("ParentMenu"), 300);
+      // إجابة صحيحة - الذهاب لقائمة الوالدين
+      Animated.timing(scaleAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setModalVisible(false);
+        navigation.navigate("ParentMenu");
+      });
     } else {
+      // إجابة خاطئة - اهتزاز ثم الرجوع للصفحة الرئيسية
       shakeError();
-      setAnswer("");
-      setAttempts((prev) => prev + 1);
-      setQuestion(generateQuestion());
     }
   };
 
   const handleCancel = () => {
-    setModalVisible(false);
-    setTimeout(() => navigation.goBack(), 300);
+    Animated.timing(scaleAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setModalVisible(false);
+      navigation.navigate("Home");
+    });
   };
 
   return (
     <Modal transparent animationType="fade" visible={modalVisible}>
-      <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.container,
-            isLandscape && styles.containerLandscape,
-            { transform: [{ translateX: shakeAnimation }] },
-          ]}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.overlay}
+      >
+        <TouchableOpacity
+          style={styles.overlayTouchable}
+          activeOpacity={1}
+          onPress={handleCancel}
         >
-          {/* زر الإغلاق */}
-          <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
-            <Text style={styles.closeIcon}>✕</Text>
-          </TouchableOpacity>
-
-          {/* الأيقونة */}
-          <View
+          <Animated.View
             style={[
-              styles.iconContainer,
-              isLandscape && styles.iconLandscape,
+              styles.container,
+              isPortrait && styles.containerPortrait,
+              {
+                transform: [
+                  { scale: scaleAnim },
+                  { translateX: shakeAnimation },
+                ],
+              },
             ]}
           >
-            <Text style={styles.lockIcon}>🔒</Text>
-          </View>
+            <TouchableOpacity activeOpacity={1}>
+              {/* 🎨 خلفية ترابية */}
+              <View style={styles.backgroundPattern}>
+                <View style={[styles.floatingShape, styles.shape1]} />
+                <View style={[styles.floatingShape, styles.shape2]} />
+              </View>
 
-          {/* العنوان */}
-          <Text style={[styles.title, isLandscape && styles.titleLandscape]}>
-            للكبار فقط
-          </Text>
+              {/* زر الإغلاق */}
+              <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
+                <Text style={styles.closeIcon}>✕</Text>
+              </TouchableOpacity>
 
-          {!isLandscape && (
-            <Text style={styles.subtitle}>حل المسألة للمتابعة</Text>
-          )}
+              {/* الأيقونة */}
+              <View style={[styles.iconContainer, !isPortrait && styles.iconContainerLandscape]}>
+                <Text style={[styles.lockIcon, !isPortrait && styles.lockIconLandscape]}>🔒</Text>
+              </View>
 
-          {/* السؤال */}
-          <View
-            style={[
-              styles.questionBox,
-              isLandscape && styles.questionBoxLandscape,
-            ]}
-          >
-            <Text style={styles.questionText}>{question.question}</Text>
-            <Text style={styles.equalsSign}>=</Text>
-            <Text style={styles.questionMark}>؟</Text>
-          </View>
+              {/* العنوان */}
+              <Text style={[styles.title, !isPortrait && styles.titleLandscape]}>للكبار فقط</Text>
+              
+              {isPortrait && (
+                <Text style={styles.subtitle}>حل المسألة للمتابعة</Text>
+              )}
 
-          {/* الإدخال */}
-          <TextInput
-            style={[styles.input, errorShake && styles.inputError]}
-            keyboardType="number-pad"
-            value={answer}
-            onChangeText={setAnswer}
-            placeholder="0"
-            maxLength={3}
-          />
+              {/* السؤال */}
+              <View style={[styles.questionBox, !isPortrait && styles.questionBoxLandscape]}>
+                <Text style={[styles.questionText, !isPortrait && styles.questionTextLandscape]}>{question.question}</Text>
+                <Text style={[styles.equalsSign, !isPortrait && styles.equalsSignLandscape]}>=</Text>
+                <Text style={[styles.questionMark, !isPortrait && styles.questionMarkLandscape]}>؟</Text>
+              </View>
 
-          {/* المحاولات */}
-          {attempts > 0 && (
-            <View style={styles.attemptsBox}>
-              <Text style={styles.attemptsText}>
-                محاولات خاطئة: {attempts}
-              </Text>
-            </View>
-          )}
+              {/* الإدخال */}
+              <TextInput
+                style={[styles.input, errorShake && styles.inputError, !isPortrait && styles.inputLandscape]}
+                keyboardType="number-pad"
+                value={answer}
+                onChangeText={setAnswer}
+                placeholder="0"
+                placeholderTextColor={COLORS.text.light}
+                maxLength={3}
+                autoFocus={true}
+                onSubmitEditing={checkAnswer}
+              />
 
-          {/* الأزرار */}
-          <View style={styles.buttonsContainer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleCancel}
-            >
-              <Text style={styles.cancelText}>إلغاء</Text>
+              {/* رسالة تحذيرية */}
+              {errorShake && (
+                <View style={[styles.errorBox, !isPortrait && styles.errorBoxLandscape]}>
+                  <Text style={[styles.errorText, !isPortrait && styles.errorTextLandscape]}>
+                    ⚠️ إجابة خاطئة! سيتم الرجوع للصفحة الرئيسية...
+                  </Text>
+                </View>
+              )}
+
+              {/* الأزرار */}
+              <View style={styles.buttonsContainer}>
+                <TouchableOpacity
+                  style={[styles.cancelButton, !isPortrait && styles.buttonLandscape]}
+                  onPress={handleCancel}
+                >
+                  <Text style={[styles.cancelText, !isPortrait && styles.buttonTextLandscape]}>إلغاء</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.confirmButton,
+                    !answer && styles.confirmButtonDisabled,
+                    !isPortrait && styles.buttonLandscape,
+                  ]}
+                  onPress={checkAnswer}
+                  disabled={!answer}
+                >
+                  <Text style={[styles.confirmText, !isPortrait && styles.buttonTextLandscape]}>تأكيد</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* نص تحذيري */}
+              {isPortrait && (
+                <Text style={styles.warningText}>
+                  💡 هذا القفل لحماية إعدادات طفلك
+                </Text>
+              )}
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                !answer && styles.confirmButtonDisabled,
-              ]}
-              onPress={checkAnswer}
-              disabled={!answer}
-            >
-              <Text style={styles.confirmText}>تأكيد</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </View>
+          </Animated.View>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-/* ================== STYLES ================== */
-
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayTouchable: {
+    flex: 1,
+    width: "100%",
     justifyContent: "center",
     alignItems: "center",
   },
 
   container: {
-    backgroundColor: "#FAF8F5",
+    backgroundColor: COLORS.background,
     width: "85%",
-    maxWidth: 360,
-    padding: 22,
-    borderRadius: 28,
+    maxWidth: 450,
+    padding: 30,
+    borderRadius: 30,
     alignItems: "center",
-    elevation: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+    borderWidth: 5,
+    borderColor: COLORS.neutral.white,
+  },
+  containerPortrait: {
+    width: "90%",
+    padding: 25,
   },
 
-  containerLandscape: {
-    width: "70%",
-    padding: 18,
+  /* 🎨 خلفية ترابية */
+  backgroundPattern: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    borderRadius: 30,
+    overflow: "hidden",
+  },
+  floatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
+  },
+  shape1: {
+    width: 150,
+    height: 150,
+    backgroundColor: COLORS.primary.green,
+    top: -50,
+    right: -50,
+  },
+  shape2: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.secondary.orange,
+    bottom: -40,
+    left: -40,
   },
 
+  /* زر الإغلاق */
   closeButton: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#E0E0E0",
+    top: 15,
+    right: 15,
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: COLORS.neutral.white,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: COLORS.neutral.cream,
+    zIndex: 10,
   },
-
   closeIcon: {
-    fontSize: 18,
+    fontSize: 24,
+    fontWeight: "bold",
+    color: COLORS.text.secondary,
   },
 
+  /* الأيقونة */
   iconContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: COLORS.primary.teal,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 5,
+    borderColor: COLORS.neutral.white,
+  },
+  iconContainerLandscape: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "#7FA896",
-    justifyContent: "center",
-    alignItems: "center",
     marginBottom: 12,
+    borderWidth: 4,
+  },
+  lockIcon: {
+    fontSize: 45,
+  },
+  lockIconLandscape: {
+    fontSize: 35,
   },
 
-  iconLandscape: {
-    width: 55,
-    height: 55,
-    borderRadius: 28,
+  /* العنوان */
+  title: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: COLORS.primary.darkTeal,
     marginBottom: 8,
   },
-
-  lockIcon: {
-    fontSize: 34,
-  },
-
-  title: {
+  titleLandscape: {
     fontSize: 22,
-    fontWeight: "bold",
-    color: "#4A6B6F",
     marginBottom: 6,
   },
-
-  titleLandscape: {
-    fontSize: 20,
-  },
-
   subtitle: {
-    fontSize: 14,
-    color: "#7A7A7A",
-    marginBottom: 16,
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.text.secondary,
+    marginBottom: 20,
   },
 
+  /* السؤال */
   questionBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 18,
-    marginBottom: 16,
+    backgroundColor: COLORS.neutral.white,
+    paddingVertical: 20,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 4,
+    borderColor: COLORS.primary.sage,
   },
-
   questionBoxLandscape: {
-    paddingVertical: 12,
-    marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginBottom: 15,
+    borderWidth: 3,
   },
-
   questionText: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "900",
+    color: COLORS.text.primary,
   },
-
+  questionTextLandscape: {
+    fontSize: 26,
+  },
   equalsSign: {
-    fontSize: 24,
+    fontSize: 28,
+    fontWeight: "700",
+    marginHorizontal: 12,
+    color: COLORS.text.secondary,
+  },
+  equalsSignLandscape: {
+    fontSize: 22,
     marginHorizontal: 8,
   },
-
   questionMark: {
-    fontSize: 28,
+    fontSize: 32,
+    fontWeight: "900",
+    color: COLORS.secondary.orange,
+  },
+  questionMarkLandscape: {
+    fontSize: 26,
   },
 
+  /* الإدخال */
   input: {
+    width: 130,
+    height: 70,
+    fontSize: 32,
+    fontWeight: "900",
+    textAlign: "center",
+    borderRadius: 20,
+    borderWidth: 4,
+    borderColor: COLORS.primary.green,
+    backgroundColor: COLORS.neutral.white,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    color: COLORS.text.primary,
+  },
+  inputLandscape: {
     width: 110,
     height: 60,
-    fontSize: 26,
-    textAlign: "center",
-    borderRadius: 16,
+    fontSize: 28,
+    borderRadius: 15,
     borderWidth: 3,
-    borderColor: "#7FA896",
-    marginBottom: 16,
+    marginBottom: 15,
   },
-
   inputError: {
-    borderColor: "#D97B6C",
-    backgroundColor: "#FFE8E8",
+    borderColor: COLORS.secondary.rust,
+    backgroundColor: COLORS.secondary.peach,
   },
 
-  attemptsBox: {
-    backgroundColor: "#FFE8E8",
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 14,
+  /* رسالة الخطأ */
+  errorBox: {
+    backgroundColor: COLORS.neutral.white,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginBottom: 20,
+    borderWidth: 3,
+    borderColor: COLORS.secondary.rust,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
-
-  attemptsText: {
+  errorBoxLandscape: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    marginBottom: 12,
+    borderWidth: 2,
+  },
+  errorText: {
     fontSize: 14,
-    color: "#D97B6C",
+    fontWeight: "700",
+    color: COLORS.secondary.rust,
+    textAlign: "center",
+  },
+  errorTextLandscape: {
+    fontSize: 12,
   },
 
+  /* الأزرار */
   buttonsContainer: {
     flexDirection: "row",
-    gap: 12,
+    gap: 15,
+    width: "100%",
+    marginBottom: 15,
   },
-
   cancelButton: {
     flex: 1,
-    backgroundColor: "#E0E0E0",
-    paddingVertical: 12,
-    borderRadius: 14,
+    backgroundColor: COLORS.neutral.white,
+    paddingVertical: 16,
+    borderRadius: 20,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 3,
+    borderColor: COLORS.neutral.cream,
   },
-
-  cancelText: {
-    fontSize: 16,
-  },
-
   confirmButton: {
     flex: 1,
-    backgroundColor: "#7FA896",
-    paddingVertical: 12,
-    borderRadius: 14,
+    backgroundColor: COLORS.primary.green,
+    paddingVertical: 16,
+    borderRadius: 20,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: COLORS.neutral.white,
   },
-
+  buttonLandscape: {
+    paddingVertical: 12,
+    borderRadius: 15,
+    borderWidth: 2,
+  },
   confirmButtonDisabled: {
     opacity: 0.5,
   },
-
+  cancelText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.text.primary,
+  },
   confirmText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.neutral.white,
+  },
+  buttonTextLandscape: {
     fontSize: 16,
-    color: "#FFF",
+  },
+
+  /* نص تحذيري */
+  warningText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.text.secondary,
+    textAlign: "center",
   },
 });

@@ -5,8 +5,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Dimensions,
   Platform,
+  SafeAreaView,
+  StatusBar,
+  useWindowDimensions,
 } from "react-native";
 import { useState, useCallback, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
@@ -15,24 +17,14 @@ import { getStoriesSortedByReadCount } from "../data/stories";
 import { COLORS } from "../styles/colors";
 
 const icons = {
-  back: require("../../assets/home-icon.png"),
+  back: require("../../assets/home-icon.webp"),
 };
 
 export default function LearningScreen({ navigation }) {
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+
   const [stories, setStories] = useState([]);
-  const [screenDimensions, setScreenDimensions] = useState(
-    Dimensions.get("window")
-  );
-
-  // تحديد الوضع (عمودي أو أفقي)
-  const isPortrait = screenDimensions.height > screenDimensions.width;
-
-  useEffect(() => {
-    const subscription = Dimensions.addEventListener("change", ({ window }) => {
-      setScreenDimensions(window);
-    });
-    return () => subscription?.remove();
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,81 +43,162 @@ export default function LearningScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* 🎨 خلفية ترابية متحركة */}
-      <View style={styles.backgroundPattern}>
-        <View style={[styles.floatingShape, styles.shape1]} />
-        <View style={[styles.floatingShape, styles.shape2]} />
-        <View style={[styles.floatingShape, styles.shape3]} />
-        <View style={[styles.floatingShape, styles.shape4]} />
-      </View>
-
-      {/* 📚 هيدر جميل */}
-      <View style={[styles.header, isPortrait && styles.headerPortrait]}>
-        {/* زر الرجوع */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Home")}
-          style={styles.backButton}
-        >
-          <Image source={icons.back} style={styles.backIcon} />
-        </TouchableOpacity>
-        
-        {/* عنوان الصفحة */}
-        <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, isPortrait && styles.headerTitlePortrait]}> مكتبة القصص</Text>
-          <View style={styles.headerUnderline} />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      
+      <View style={styles.container}>
+        {/* 🎨 خلفية ترابية متحركة */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.floatingShape, styles.shape1]} />
+          <View style={[styles.floatingShape, styles.shape2]} />
+          <View style={[styles.floatingShape, styles.shape3]} />
+          <View style={[styles.floatingShape, styles.shape4]} />
         </View>
 
-        <View style={styles.spacer} />
-      </View>
-
-      {/* 📖 قائمة القصص */}
-      <ScrollView
-        contentContainerStyle={[styles.storiesList, isPortrait && styles.storiesListPortrait]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={[styles.storiesGrid, !isPortrait && styles.storiesGridLandscape]}>
-          {stories.map((story, index) => (
-            <TouchableOpacity
-              key={story.id}
+        {/* 📚 هيدر جميل */}
+        <View style={[
+          styles.header,
+          {
+            paddingTop: isPortrait ? 10 : 8,
+            paddingBottom: isPortrait ? 15 : 10,
+            paddingHorizontal: isPortrait ? 15 : 20,
+          }
+        ]}>
+          {/* زر الرجوع */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Home")}
+            style={[
+              styles.backButton,
+              {
+                width: isPortrait ? 55 : 50,
+                height: isPortrait ? 55 : 50,
+                borderRadius: isPortrait ? 27.5 : 25,
+              }
+            ]}
+          >
+            <Image 
+              source={icons.back} 
               style={[
-                styles.storyCard, 
-                isPortrait && styles.storyCardPortrait,
-                !isPortrait && styles.storyCardLandscape
-              ]}
-              onPress={() => openStory(story)}
-              activeOpacity={0.85}
-            >
-              {/* صورة القصة مع تأثير */}
-              <View style={styles.imageWrapper}>
-                <View style={[styles.imageContainer, isPortrait && styles.imageContainerPortrait]}>
-                  <Image
-                    source={story.coverImage}
-                    style={styles.storyImage}
-                    resizeMode="cover"
-                  />
-                  {/* تأثير التدرج */}
-                  <View style={styles.imageGradient} />
-                </View>
-              </View>
+                styles.backIcon,
+                {
+                  width: isPortrait ? 30 : 28,
+                  height: isPortrait ? 30 : 28,
+                }
+              ]} 
+            />
+          </TouchableOpacity>
+          
+          {/* عنوان الصفحة */}
+          <View style={styles.headerTitleContainer}>
+            <Text style={[
+              styles.headerTitle,
+              {
+                fontSize: isPortrait ? 24 : 22,
+              }
+            ]}>📚 مكتبة القصص</Text>
+            <View style={[
+              styles.headerUnderline,
+              {
+                width: isPortrait ? 60 : 50,
+                height: isPortrait ? 4 : 3,
+              }
+            ]} />
+          </View>
 
-              {/* عنوان القصة */}
-              <View style={[styles.titleContainer, isPortrait && styles.titleContainerPortrait]}>
-                <Text style={[styles.storyTitle, isPortrait && styles.storyTitlePortrait]} numberOfLines={2}>
-                  {story.title}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          <View style={[styles.spacer, { width: isPortrait ? 55 : 50 }]} />
         </View>
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </View>
+        {/* 📖 قائمة القصص */}
+        <ScrollView
+          contentContainerStyle={[
+            styles.storiesList,
+            {
+              padding: isPortrait ? 15 : 20,
+              paddingBottom: isPortrait ? 30 : 40,
+            }
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[
+            styles.storiesGrid,
+            !isPortrait && {
+              flexDirection: "row",
+              flexWrap: "wrap",
+              justifyContent: "space-between",
+            }
+          ]}>
+            {stories.map((story, index) => (
+              <TouchableOpacity
+                key={story.id}
+                style={[
+                  styles.storyCard,
+                  {
+                    borderRadius: isPortrait ? 22 : 20,
+                    marginBottom: isPortrait ? 18 : 16,
+                    borderWidth: isPortrait ? 3 : 3,
+                  },
+                  !isPortrait && {
+                    width: "48%",
+                  }
+                ]}
+                onPress={() => openStory(story)}
+                activeOpacity={0.85}
+              >
+                {/* صورة القصة مع تأثير */}
+                <View style={styles.imageWrapper}>
+                  <View style={[
+                    styles.imageContainer,
+                    {
+                      height: isPortrait ? 180 : 150,
+                    }
+                  ]}>
+                    <Image
+                      source={story.coverImage}
+                      style={styles.storyImage}
+                      resizeMode="cover"
+                    />
+                    {/* تأثير التدرج */}
+                    <View style={styles.imageGradient} />
+                  </View>
+                </View>
+
+                {/* عنوان القصة */}
+                <View style={[
+                  styles.titleContainer,
+                  {
+                    padding: isPortrait ? 16 : 14,
+                    minHeight: isPortrait ? 70 : 65,
+                  }
+                ]}>
+                  <Text 
+                    style={[
+                      styles.storyTitle,
+                      {
+                        fontSize: isPortrait ? 18 : 17,
+                        lineHeight: isPortrait ? 26 : 24,
+                      }
+                    ]} 
+                    numberOfLines={2}
+                  >
+                    {story.title}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -177,19 +250,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "transparent",
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 20,
     zIndex: 100,
   },
-  headerPortrait: {
-    paddingTop: Platform.OS === "ios" ? 50 : 20,
-    paddingHorizontal: 15,
-  },
   backButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     backgroundColor: COLORS.primary.teal,
     justifyContent: "center",
     alignItems: "center",
@@ -198,81 +261,51 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 6,
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: COLORS.neutral.white,
   },
   backIcon: {
-    width: 32,
-    height: 32,
     tintColor: COLORS.neutral.white,
   },
   headerTitleContainer: {
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 28,
     fontWeight: "900",
     color: COLORS.secondary.orange,
     textShadowColor: "rgba(0, 0, 0, 0.1)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  headerTitlePortrait: {
-    fontSize: 24,
-  },
   headerUnderline: {
-    width: 60,
-    height: 4,
     backgroundColor: COLORS.primary.green,
     borderRadius: 2,
     marginTop: 5,
   },
   spacer: {
-    width: 60,
+    // width set dynamically
   },
 
   /* ====== قائمة القصص ====== */
   storiesList: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  storiesListPortrait: {
-    padding: 15,
-    paddingBottom: 30,
+    // padding set dynamically
   },
 
   /* ====== شبكة القصص ====== */
   storiesGrid: {
     width: "100%",
   },
-  storiesGridLandscape: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
 
   /* ====== بطاقة القصة ====== */
   storyCard: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 30,
-    marginBottom: 25,
     overflow: "hidden",
-    borderWidth: 4,
     borderColor: COLORS.primary.sage,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 12,
-  },
-  storyCardPortrait: {
-    borderRadius: 25,
-    marginBottom: 20,
-    borderWidth: 3,
-  },
-  storyCardLandscape: {
-    width: "48%",
-    marginBottom: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
   },
 
   /* ====== صورة القصة ====== */
@@ -282,11 +315,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: "relative",
     width: "100%",
-    height: 240,
     backgroundColor: COLORS.neutral.cream,
-  },
-  imageContainerPortrait: {
-    height: 200,
   },
   storyImage: {
     width: "100%",
@@ -304,24 +333,16 @@ const styles = StyleSheet.create({
 
   /* ====== عنوان القصة ====== */
   titleContainer: {
-    padding: 20,
     backgroundColor: COLORS.neutral.white,
-    minHeight: 85,
     justifyContent: "center",
   },
-  titleContainerPortrait: {
-    padding: 18,
-    minHeight: 75,
-  },
   storyTitle: {
-    fontSize: 22,
     fontWeight: "800",
     color: COLORS.text.primary,
-    lineHeight: 32,
     textAlign: "center",
   },
-  storyTitlePortrait: {
-    fontSize: 20,
-    lineHeight: 28,
+
+  bottomSpacer: {
+    height: 20,
   },
 });

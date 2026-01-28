@@ -7,7 +7,7 @@ export const stories = [
     id: "story1",
     title: "غسل اليدين",
     description: "تعلم كيفية غسل اليدين بطريقة صحيحة",
-    coverImage: require("../../assets/stories/handwash/cover.jpg"),
+    coverImage: require("../../assets/stories/handwash/cover.webp"),
     category: "نظافة",
     readCount: 0,
     scenes: [
@@ -56,7 +56,7 @@ export const stories = [
         {
           id: "correct",
           text: "قبل الأكل",
-          image: require("../../assets/stories/handwash/Canswer.png"),
+          image: require("../../assets/stories/handwash/Canswer.webp"),
           // ✅ صوت الإجابة
           audio: require("../../assets/sounds/quiz/answers/handwash_answer1.mp3"),
           isCorrect: true,
@@ -64,7 +64,7 @@ export const stories = [
         {
           id: "wrong",
           text: "عند اللعب",
-          image: require("../../assets/stories/handwash/Ranswer.png"),
+          image: require("../../assets/stories/handwash/Ranswer.webp"),
           // ✅ صوت الإجابة
           audio: require("../../assets/sounds/quiz/answers/handwash_answer2.mp3"),
           isCorrect: false,
@@ -77,7 +77,7 @@ export const stories = [
     id: "story2",
     title: "تنظيف الأسنان",
     description: "خطوات تنظيف الأسنان الصحيحة",
-    coverImage: require("../../assets/stories/teeth/cover.jpg"),
+    coverImage: require("../../assets/stories/teeth/cover.webp"),
     category: "نظافة",
     readCount: 0,
     scenes: [
@@ -126,14 +126,14 @@ export const stories = [
         {
           id: "correct",
           text: "نفرشها في الصباح والمساء",
-          image: require("../../assets/stories/teeth/Canswer.png"),
+          image: require("../../assets/stories/teeth/Canswer.webp"),
           audio: require("../../assets/sounds/quiz/answers/teeth_answer1.mp3"),
           isCorrect: true,
         },
         {
           id: "wrong",
           text: "لا نفرشها أبداً ونأكل الحلويات كثيرا",
-          image: require("../../assets/stories/teeth/Ranswer.png"),
+          image: require("../../assets/stories/teeth/Ranswer.webp"),
           audio: require("../../assets/sounds/quiz/answers/teeth_answer2.mp3"),
           isCorrect: false,
         },
@@ -145,7 +145,7 @@ export const stories = [
     id: "story4",
     title: "تناول الطعام",
     description: "آداب وخطوات تناول الطعام",
-    coverImage: require("../../assets/stories/eating/cover.jpg"),
+    coverImage: require("../../assets/stories/eating/cover.webp"),
     category: "آداب",
     readCount: 0,
     scenes: [
@@ -194,14 +194,14 @@ export const stories = [
         {
           id: "correct",
           text: "بسم الله",
-          image: require("../../assets/stories/eating/Canswer.png"),
+          image: require("../../assets/stories/eating/Canswer.webp"),
           audio: require("../../assets/sounds/quiz/answers/eating_answer1.mp3"),
           isCorrect: true,
         },
         {
           id: "wrong",
           text: "السلام عليكم",
-          image: require("../../assets/stories/eating/Ranswer.png"),
+          image: require("../../assets/stories/eating/Ranswer.webp"),
           audio: require("../../assets/sounds/quiz/answers/eating_answer2.mp3"),
           isCorrect: false,
         },
@@ -213,7 +213,7 @@ export const stories = [
     id: "story5",
     title: "الاستعداد للنوم",
     description: "روتين النوم الصحي",
-    coverImage: require("../../assets/stories/sleep/cover.jpg"),
+    coverImage: require("../../assets/stories/sleep/cover.webp"),
     category: "روتين يومي",
     readCount: 0,
     scenes: [
@@ -256,14 +256,14 @@ export const stories = [
         {
           id: "correct",
           text: "ننظف الأسنان",
-          image: require("../../assets/stories/sleep/Canswer.png"),
+          image: require("../../assets/stories/sleep/Canswer.webp"),
           audio: require("../../assets/sounds/quiz/answers/sleep_answer1.mp3"),
           isCorrect: true,
         },
         {
           id: "wrong",
           text: "نلعب بالكرة",
-          image: require("../../assets/stories/sleep/Ranswer.png"),
+          image: require("../../assets/stories/sleep/Ranswer.webp"),
           audio: require("../../assets/sounds/quiz/answers/sleep_answer2.mp3"),
           isCorrect: false,
         },

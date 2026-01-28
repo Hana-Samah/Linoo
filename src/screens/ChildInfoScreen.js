@@ -12,25 +12,25 @@ import {
   StatusBar,
   SafeAreaView,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { saveChildInfo } from "../storage/childStorage";
+import { COLORS } from "../styles/colors";
 
-/* ====== 🎨 ألوان Linoo الترابية ====== */
-const COLORS = {
-  background: "#FFF9EE",
-  card: "#FFFFFF",
-  primary: "#7FA896",
-  primarySoft: "#E8F5F2",
-  accent: "#E8C68E",
-  secondary: "#D9956C",
-  textMain: "#2D3436",
-  textSub: "#636E72",
-  border: "#E8EAED",
+const icons = {
+  camera: require("../../assets/camera-icon.webp"),
+  save: require("../../assets/save-icon.webp"),
+  girl: require("../../assets/girl.webp"),
+  boy: require("../../assets/boy.webp"),
 };
 
 export default function ChildInfoScreen({ navigation }) {
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+  const isSmallScreen = width < 375;
+
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
@@ -132,33 +132,47 @@ export default function ChildInfoScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      {/* 🎨 Decorative circles */}
-      <View style={styles.decorCircle1} />
-      <View style={styles.decorCircle2} />
+      {/* 🎨 خلفية ترابية */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.floatingShape, styles.shape1]} />
+        <View style={[styles.floatingShape, styles.shape2]} />
+        <View style={[styles.floatingShape, styles.shape3]} />
+        <View style={[styles.floatingShape, styles.shape4]} />
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[
+            styles.scroll,
+            {
+              paddingHorizontal: isPortrait ? 20 : 24,
+              paddingTop: isPortrait ? 16 : 12,
+              paddingBottom: isPortrait ? 24 : 16,
+            }
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {/* 🦁 Logo Section */}
           <Animated.View
             style={[
               styles.logoSection,
-              { transform: [{ scale: logoScale }] },
+              {
+                marginBottom: isPortrait ? 20 : 12,
+                transform: [{ scale: logoScale }],
+              }
             ]}
           >
-            <View style={styles.logoCircle}>
-              <Image 
-                source={require("../../assets/lion/lion_8.png")} 
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-            
+            <Image 
+              source={require("../../assets/lion/lion_8.webp")} 
+              style={{
+                width: isPortrait ? (isSmallScreen ? 140 : 160) : 120,
+                height: isPortrait ? (isSmallScreen ? 140 : 160) : 120,
+              }}
+              resizeMode="contain"
+            />
           </Animated.View>
 
           {/* 📝 Header */}
@@ -166,14 +180,26 @@ export default function ChildInfoScreen({ navigation }) {
             style={[
               styles.header,
               {
+                marginBottom: isPortrait ? 24 : 16,
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
               },
             ]}
           >
-            <Text style={styles.title}>معلومات  الطفل</Text>
-            <Text style={styles.subtitle}>
-              دعنا نجهّز ملف بطلنا / بطلتنا  🌟
+            <Text style={{
+              fontSize: isPortrait ? (isSmallScreen ? 26 : 28) : 24,
+              fontWeight: "900",
+              color: COLORS.secondary.orange,
+              textAlign: "center",
+            }}>معلومات الطفل</Text>
+            <Text style={{
+              fontSize: isPortrait ? (isSmallScreen ? 15 : 16) : 14,
+              fontWeight: "600",
+              color: COLORS.text.secondary,
+              marginTop: 8,
+              textAlign: "center",
+            }}>
+              دعنا نجهّز ملف بطلنا / بطلتنا 🌟
             </Text>
           </Animated.View>
 
@@ -182,17 +208,33 @@ export default function ChildInfoScreen({ navigation }) {
             style={[
               styles.card,
               {
+                borderRadius: isPortrait ? 25 : 22,
+                padding: isPortrait ? 20 : 18,
+                marginBottom: isPortrait ? 20 : 16,
                 opacity: fadeAnim,
                 transform: [{ translateY: slideAnim }],
               },
             ]}
           >
             {/* 📸 Photo Section */}
-            <View style={styles.photoSection}>
-              <Text style={styles.sectionLabel}>📸 صورة الطفل</Text>
+            <View style={[styles.photoSection, { marginBottom: isPortrait ? 20 : 16 }]}>
+              <Text style={{
+                fontSize: isPortrait ? 16 : 15,
+                fontWeight: "800",
+                color: COLORS.text.primary,
+                marginBottom: isPortrait ? 14 : 12,
+                textAlign: "center",
+              }}>📸 صورة الطفل</Text>
               
               <TouchableOpacity
-                style={styles.photoContainer}
+                style={[
+                  styles.photoContainer,
+                  {
+                    width: isPortrait ? 140 : 120,
+                    height: isPortrait ? 140 : 120,
+                    borderRadius: isPortrait ? 70 : 60,
+                  }
+                ]}
                 activeOpacity={0.8}
                 onPress={pickImage}
               >
@@ -202,30 +244,72 @@ export default function ChildInfoScreen({ navigation }) {
                     style={[
                       styles.photoImage,
                       {
+                        width: isPortrait ? 140 : 120,
+                        height: isPortrait ? 140 : 120,
+                        borderRadius: isPortrait ? 70 : 60,
                         opacity: photoOpacity,
                         transform: [{ scale: photoScale }],
                       },
                     ]}
                   />
                 ) : (
-                  <View style={styles.photoPlaceholder}>
-                    <Text style={styles.photoIcon}>📷</Text>
-                    <Text style={styles.photoHint}>اضغط لإضافة صورة</Text>
+                  <View style={[
+                    styles.photoPlaceholder,
+                    {
+                      width: isPortrait ? 140 : 120,
+                      height: isPortrait ? 140 : 120,
+                      borderRadius: isPortrait ? 70 : 60,
+                    }
+                  ]}>
+                    <Text style={{ fontSize: isPortrait ? 45 : 40 }}>📷</Text>
+                    <Text style={{
+                      fontSize: isPortrait ? 11 : 10,
+                      fontWeight: "700",
+                      color: COLORS.text.secondary,
+                      textAlign: "center",
+                      marginTop: 6,
+                    }}>اضغط لإضافة صورة</Text>
                   </View>
                 )}
                 
                 {/* Camera badge */}
                 {!imageUri && (
-                  <View style={styles.cameraBadge}>
-                    <Text style={styles.cameraIcon}>📷</Text>
+                  <View style={[
+                    styles.cameraBadge,
+                    {
+                      width: isPortrait ? 40 : 36,
+                      height: isPortrait ? 40 : 36,
+                      borderRadius: isPortrait ? 20 : 18,
+                    }
+                  ]}>
+                    <Image 
+                      source={icons.camera} 
+                      style={{
+                        width: isPortrait ? 22 : 20,
+                        height: isPortrait ? 22 : 20,
+                      }}
+                      resizeMode="contain" 
+                    />
                   </View>
                 )}
               </TouchableOpacity>
 
               {!imageUri && (
-                <View style={styles.photoNote}>
-                  <Text style={styles.photoNoteIcon}>ℹ️</Text>
-                  <Text style={styles.photoNoteText}>
+                <View style={[
+                  styles.photoNote,
+                  {
+                    marginTop: isPortrait ? 12 : 10,
+                    paddingVertical: isPortrait ? 10 : 8,
+                    paddingHorizontal: isPortrait ? 16 : 14,
+                  }
+                ]}>
+                  <Text style={{ fontSize: 14 }}>ℹ️</Text>
+                  <Text style={{
+                    fontSize: isPortrait ? 12 : 11,
+                    color: COLORS.neutral.white,
+                    fontWeight: "700",
+                    marginLeft: 6,
+                  }}>
                     الصورة مطلوبة لإكمال التسجيل
                   </Text>
                 </View>
@@ -233,60 +317,106 @@ export default function ChildInfoScreen({ navigation }) {
             </View>
 
             {/* 👤 Name Input */}
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>👤 الاسم</Text>
+            <View style={[styles.inputSection, { marginBottom: isPortrait ? 18 : 14 }]}>
+              <Text style={{
+                fontSize: isPortrait ? 16 : 15,
+                fontWeight: "800",
+                color: COLORS.text.primary,
+                marginBottom: isPortrait ? 10 : 8,
+              }}>👤 الاسم</Text>
               <View style={styles.inputWrapper}>
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      paddingVertical: isPortrait ? 14 : 12,
+                      paddingHorizontal: isPortrait ? 18 : 16,
+                      fontSize: isPortrait ? 16 : 15,
+                      borderRadius: isPortrait ? 18 : 16,
+                    }
+                  ]}
                   placeholder="اسم الطفل الرائع"
                   value={name}
                   onChangeText={setName}
-                  placeholderTextColor="#999"
+                  placeholderTextColor={COLORS.text.light}
                 />
-                <View style={styles.inputIcon}>
-                  <Text style={styles.inputIconText}>✏️</Text>
-                </View>
               </View>
             </View>
 
             {/* 🎂 Age Input */}
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>🎂 العمر</Text>
+            <View style={[styles.inputSection, { marginBottom: isPortrait ? 18 : 14 }]}>
+              <Text style={{
+                fontSize: isPortrait ? 16 : 15,
+                fontWeight: "800",
+                color: COLORS.text.primary,
+                marginBottom: isPortrait ? 10 : 8,
+              }}>🎂 العمر</Text>
               <View style={styles.inputWrapper}>
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      paddingVertical: isPortrait ? 14 : 12,
+                      paddingHorizontal: isPortrait ? 18 : 16,
+                      fontSize: isPortrait ? 16 : 15,
+                      borderRadius: isPortrait ? 18 : 16,
+                    }
+                  ]}
                   placeholder="كم عمره؟"
                   keyboardType="number-pad"
                   maxLength={2}
                   value={age}
                   onChangeText={setAge}
-                  placeholderTextColor="#999"
+                  placeholderTextColor={COLORS.text.light}
                 />
-                <View style={styles.inputIcon}>
-                  <Text style={styles.inputIconText}>🎈</Text>
-                </View>
               </View>
-              <Text style={styles.ageHint}>من 2 إلى 8 سنوات</Text>
+              <Text style={{
+                fontSize: isPortrait ? 11 : 10,
+                fontWeight: "600",
+                color: COLORS.text.secondary,
+                marginTop: 6,
+                marginRight: 4,
+              }}>من 2 إلى 8 سنوات</Text>
             </View>
 
             {/* 👶 Gender Selection */}
             <View style={styles.inputSection}>
-              <Text style={styles.label}>👶 الجنس</Text>
-              <View style={styles.genderRow}>
+              <Text style={{
+                fontSize: isPortrait ? 16 : 15,
+                fontWeight: "800",
+                color: COLORS.text.primary,
+                marginBottom: isPortrait ? 12 : 10,
+              }}>👶 الجنس</Text>
+              <View style={[styles.genderRow, { gap: isPortrait ? 12 : 10 }]}>
                 <TouchableOpacity
                   style={[
                     styles.genderButton,
+                    {
+                      borderRadius: isPortrait ? 18 : 16,
+                      paddingVertical: isPortrait ? 18 : 14,
+                      paddingHorizontal: isPortrait ? 14 : 12,
+                    },
                     gender === "male" && styles.genderActive,
                   ]}
                   onPress={() => setGender("male")}
                   activeOpacity={0.8}
                 >
                   <View style={styles.genderIconContainer}>
-                    <Text style={styles.genderIcon}>👦</Text>
+                    <Image 
+                      source={icons.boy} 
+                      style={{
+                        width: isPortrait ? 80 : 70,
+                        height: isPortrait ? 80 : 70,
+                      }}
+                      resizeMode="contain" 
+                    />
                   </View>
                   <Text
                     style={[
                       styles.genderText,
+                      {
+                        fontSize: isPortrait ? 15 : 14,
+                      },
                       gender === "male" && styles.genderTextActive,
                     ]}
                   >
@@ -294,8 +424,15 @@ export default function ChildInfoScreen({ navigation }) {
                   </Text>
                   
                   {gender === "male" && (
-                    <View style={styles.checkBadge}>
-                      <Text style={styles.checkIcon}>✓</Text>
+                    <View style={[
+                      styles.checkBadge,
+                      {
+                        width: isPortrait ? 28 : 26,
+                        height: isPortrait ? 28 : 26,
+                        borderRadius: isPortrait ? 14 : 13,
+                      }
+                    ]}>
+                      <Text style={{ fontSize: isPortrait ? 14 : 13, color: COLORS.neutral.white, fontWeight: "bold" }}>✓</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -303,17 +440,32 @@ export default function ChildInfoScreen({ navigation }) {
                 <TouchableOpacity
                   style={[
                     styles.genderButton,
+                    {
+                      borderRadius: isPortrait ? 18 : 16,
+                      paddingVertical: isPortrait ? 18 : 14,
+                      paddingHorizontal: isPortrait ? 14 : 12,
+                    },
                     gender === "female" && styles.genderActive,
                   ]}
                   onPress={() => setGender("female")}
                   activeOpacity={0.8}
                 >
                   <View style={styles.genderIconContainer}>
-                    <Text style={styles.genderIcon}>👧</Text>
+                    <Image 
+                      source={icons.girl} 
+                      style={{
+                        width: isPortrait ? 80 : 70,
+                        height: isPortrait ? 80 : 70,
+                      }}
+                      resizeMode="contain" 
+                    />
                   </View>
                   <Text
                     style={[
                       styles.genderText,
+                      {
+                        fontSize: isPortrait ? 15 : 14,
+                      },
                       gender === "female" && styles.genderTextActive,
                     ]}
                   >
@@ -321,8 +473,15 @@ export default function ChildInfoScreen({ navigation }) {
                   </Text>
                   
                   {gender === "female" && (
-                    <View style={styles.checkBadge}>
-                      <Text style={styles.checkIcon}>✓</Text>
+                    <View style={[
+                      styles.checkBadge,
+                      {
+                        width: isPortrait ? 28 : 26,
+                        height: isPortrait ? 28 : 26,
+                        borderRadius: isPortrait ? 14 : 13,
+                      }
+                    ]}>
+                      <Text style={{ fontSize: isPortrait ? 14 : 13, color: COLORS.neutral.white, fontWeight: "bold" }}>✓</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -330,376 +489,259 @@ export default function ChildInfoScreen({ navigation }) {
             </View>
           </Animated.View>
 
-          {/* 🚀 Start Button */}
-          <Animated.View
-            style={{
-              transform: [{ scale: buttonScale }],
-            }}
-          >
+          {/* 🚀 Save Button */}
+          <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
             <TouchableOpacity
-              style={styles.saveButton}
+              style={[
+                styles.saveButton,
+                {
+                  paddingVertical: isPortrait ? 18 : 16,
+                  borderRadius: isPortrait ? 22 : 20,
+                  marginBottom: isPortrait ? 12 : 10,
+                }
+              ]}
               onPress={save}
               activeOpacity={0.85}
             >
               <View style={styles.buttonContent}>
-                <Text style={styles.buttonIcon}>🚀</Text>
-                <Text style={styles.saveText}>ابدأ الرحلة الآن</Text>
+                <Image 
+                  source={icons.save} 
+                  style={{
+                    width: isPortrait ? 26 : 24,
+                    height: isPortrait ? 26 : 24,
+                  }}
+                  resizeMode="contain" 
+                />
+                <Text style={{
+                  color: COLORS.neutral.white,
+                  fontSize: isPortrait ? 20 : 18,
+                  fontWeight: "900",
+                  marginLeft: 10,
+                }}>ابدأ المغامرة</Text>
               </View>
-              <View style={styles.buttonShine} />
             </TouchableOpacity>
-
-            {/* Footer note */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                ✨ رحلة التعلم والتواصل تبدأ من هنا
-              </Text>
-            </View>
           </Animated.View>
 
-          {/* Bottom spacing */}
-          <View style={styles.bottomSpacer} />
+          {/* 📝 Footer */}
+          <View style={styles.footer}>
+            <Text style={{
+              fontSize: isPortrait ? 12 : 11,
+              fontWeight: "600",
+              color: COLORS.text.secondary,
+              textAlign: "center",
+            }}>
+              جميع البيانات محفوظة على جهازك فقط 🔒
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-/* ================== 🎨 Styles ================== */
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  scroll: {
-    padding: 24,
-    paddingBottom: 40,
-  },
 
-  /* 🎨 Decorative circles */
-  decorCircle1: {
-    position: 'absolute',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: COLORS.accent,
-    opacity: 0.06,
-    top: -80,
-    right: -60,
+  /* 🎨 خلفية ترابية */
+  backgroundPattern: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
   },
-  decorCircle2: {
-    position: 'absolute',
+  floatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
+  },
+  shape1: {
     width: 200,
     height: 200,
-    borderRadius: 100,
-    backgroundColor: COLORS.primary,
-    opacity: 0.05,
-    bottom: -50,
-    left: -40,
+    backgroundColor: COLORS.primary.green,
+    top: -50,
+    right: -60,
+  },
+  shape2: {
+    width: 150,
+    height: 150,
+    backgroundColor: COLORS.secondary.orange,
+    bottom: -40,
+    left: -50,
+  },
+  shape3: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.primary.teal,
+    top: "30%",
+    left: -30,
+  },
+  shape4: {
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.secondary.peach,
+    bottom: "25%",
+    right: -20,
+  },
+
+  /* ScrollView */
+  scroll: {
+    flexGrow: 1,
   },
 
   /* 🦁 Logo Section */
   logoSection: {
     alignItems: 'center',
-    marginBottom: 24,
-    position: 'relative',
-  },
- 
-  logoImage: {
-    width: 200,
-    height: 200,
-  },
-  starsDecor: {
-    position: 'absolute',
-    top: -5,
-    right: '35%',
-    flexDirection: 'row',
-    gap: 4,
-  },
-  miniStar: {
-    fontSize: 16,
   },
 
   /* 📝 Header */
   header: {
     alignItems: 'center',
-    marginBottom: 28,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: COLORS.textMain,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.textSub,
-    marginTop: 8,
-    textAlign: 'center',
   },
 
   /* 📋 Card */
   card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 28,
-    padding: 24,
+    backgroundColor: COLORS.neutral.white,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.15,
     shadowRadius: 20,
-    elevation: 6,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    marginBottom: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+    borderWidth: 4,
+    borderColor: COLORS.primary.sage,
   },
 
   /* 📸 Photo Section */
   photoSection: {
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textMain,
-    marginBottom: 16,
-    textAlign: 'center',
+    alignItems: 'center',
   },
   photoContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    alignSelf: 'center',
-    marginBottom: 12,
     position: 'relative',
+    alignSelf: 'center',
   },
   photoImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 4,
-    borderColor: COLORS.primary,
+    borderWidth: 5,
+    borderColor: COLORS.primary.green,
   },
   photoPlaceholder: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: COLORS.primarySoft,
+    backgroundColor: COLORS.primary.sage,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 4,
     borderStyle: 'dashed',
-    borderColor: COLORS.primary,
-  },
-  photoIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  photoHint: {
-    fontSize: 12,
-    color: COLORS.textSub,
-    fontWeight: '600',
-    textAlign: 'center',
+    borderColor: COLORS.primary.green,
   },
   cameraBadge: {
     position: 'absolute',
     bottom: 5,
     right: 5,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary.green,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.card,
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  cameraIcon: {
-    fontSize: 20,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
   photoNote: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.accent + '30',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 16,
+    backgroundColor: COLORS.secondary.peach,
+    borderRadius: 18,
     gap: 8,
-  },
-  photoNoteIcon: {
-    fontSize: 16,
-  },
-  photoNoteText: {
-    fontSize: 13,
-    color: COLORS.textMain,
-    fontWeight: '600',
   },
 
   /* 📝 Input Sections */
   inputSection: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textMain,
-    marginBottom: 10,
+    // Margins set dynamically
   },
   inputWrapper: {
     position: 'relative',
   },
   input: {
     backgroundColor: COLORS.background,
-    borderRadius: 18,
-    padding: 16,
-    paddingRight: 50,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    fontSize: 16,
-    color: COLORS.textMain,
-  },
-  inputIcon: {
-    position: 'absolute',
-    right: 16,
-    top: '50%',
-    marginTop: -12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primarySoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inputIconText: {
-    fontSize: 18,
-  },
-  ageHint: {
-    fontSize: 12,
-    color: COLORS.textSub,
-    marginTop: 6,
-    marginRight: 4,
+    borderWidth: 3,
+    borderColor: COLORS.primary.sage,
+    fontWeight: '600',
+    color: COLORS.text.primary,
   },
 
   /* 👶 Gender Selection */
   genderRow: {
     flexDirection: 'row',
-    gap: 14,
   },
   genderButton: {
     flex: 1,
-    borderRadius: 20,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    borderWidth: 3,
+    borderColor: COLORS.neutral.cream,
     backgroundColor: COLORS.background,
     position: 'relative',
-  },
-  genderActive: {
-    backgroundColor: COLORS.primarySoft,
-    borderColor: COLORS.primary,
-    borderWidth: 3,
-  },
-  genderIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  genderIcon: {
-    fontSize: 36,
+  genderActive: {
+    backgroundColor: COLORS.primary.sage,
+    borderColor: COLORS.primary.green,
+    borderWidth: 4,
+  },
+  genderIconContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   genderText: {
-    fontSize: 16,
-    color: COLORS.textSub,
-    fontWeight: '600',
+    color: COLORS.text.secondary,
+    fontWeight: '700',
   },
   genderTextActive: {
-    color: COLORS.primary,
-    fontWeight: '800',
-    fontSize: 17,
+    color: COLORS.primary.green,
+    fontWeight: '900',
   },
   checkBadge: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary.green,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.card,
-  },
-  checkIcon: {
-    fontSize: 14,
-    color: COLORS.card,
-    fontWeight: 'bold',
+    borderWidth: 3,
+    borderColor: COLORS.neutral.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
   },
 
   /* 🚀 Save Button */
   saveButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 22,
-    paddingVertical: 20,
+    backgroundColor: COLORS.primary.green,
     alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-    position: 'relative',
-    overflow: 'hidden',
-    marginBottom: 16,
+    shadowColor: COLORS.primary.green,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 12,
+    borderWidth: 5,
+    borderColor: COLORS.neutral.white,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  buttonIcon: {
-    fontSize: 24,
-  },
-  saveText: {
-    color: COLORS.card,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  buttonShine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 
   /* 📝 Footer */
   footer: {
     alignItems: 'center',
     paddingHorizontal: 20,
-  },
-  footerText: {
-    fontSize: 14,
-    color: COLORS.textSub,
-    textAlign: 'center',
-  },
-
-  /* Spacing */
-  bottomSpacer: {
-    height: 20,
   },
 });

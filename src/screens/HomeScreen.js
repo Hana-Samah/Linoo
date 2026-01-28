@@ -5,10 +5,14 @@ import {
   TouchableOpacity,
   Image,
   Animated,
-  Dimensions,
   Platform,
   SafeAreaView,
   StatusBar,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
@@ -21,7 +25,6 @@ import { getStars, getCurrentStreak } from "../storage/rewardsTracking";
 import { getDailyProgress } from "../storage/dailyLionProgress";
 import LionProgress from "../components/LionProgress";
 
-// 🎨 ألوان Linoo الترابية
 const COLORS = {
   background: "#FAF8F5",
   cream: "#F5EFE7",
@@ -39,21 +42,54 @@ const COLORS = {
   textSecondary: "#7A7A7A",
 };
 
+function generateQuestion() {
+  const types = ["add", "subtract", "multiply"];
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  switch (type) {
+    case "add": {
+      const a = Math.floor(Math.random() * 10) + 1;
+      const b = Math.floor(Math.random() * 10) + 1;
+      return { question: `${a} + ${b}`, answer: a + b };
+    }
+    case "subtract": {
+      const big = Math.floor(Math.random() * 15) + 5;
+      const small = Math.floor(Math.random() * big);
+      return { question: `${big} - ${small}`, answer: big - small };
+    }
+    case "multiply": {
+      const a = Math.floor(Math.random() * 5) + 1;
+      const b = Math.floor(Math.random() * 5) + 1;
+      return { question: `${a} × ${b}`, answer: a * b };
+    }
+    default:
+      return { question: "2 + 2", answer: 4 };
+  }
+}
+
 export default function HomeScreen({ navigation }) {
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+  const isSmallScreen = width < 375;
+
   const [childInfo, setChildInfo] = useState(null);
   const [stars, setStars] = useState(0);
   const [streak, setStreak] = useState(0);
   const [dailyProgress, setDailyProgress] = useState(0);
-  const [screenDimensions, setScreenDimensions] = useState(
-    Dimensions.get("window"),
-  );
 
-  // ✨ Animations
+  const [modalVisible, setModalVisible] = useState(false);
+  const [question, setQuestion] = useState(generateQuestion());
+  const [answer, setAnswer] = useState("");
+  const [errorShake, setErrorShake] = useState(false);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const lionFloat = useRef(new Animated.Value(0)).current;
   const starPulse = useRef(new Animated.Value(1)).current;
   const [hasPlayedWelcome, setHasPlayedWelcome] = useState(false);
+
+  const shakeAnimation = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0)).current;
 
   const soundRef = useRef(null);
 
@@ -67,17 +103,10 @@ export default function HomeScreen({ navigation }) {
     stories: useRef(new Animated.Value(0)).current,
   };
 
-  // 📱 Get dynamic values
-  const isPortrait = screenDimensions.height > screenDimensions.width;
-  const AAC_IMAGE = require("../../assets/aac-icon.png");
-  const STORIES_IMAGE = require("../../assets/stories-icon.png");
+  const AAC_IMAGE = require("../../assets/aac-icon.webp");
+  const STORIES_IMAGE = require("../../assets/stories-icon.webp");
 
   useEffect(() => {
-    const subscription = Dimensions.addEventListener("change", ({ window }) => {
-      setScreenDimensions(window);
-    });
-
-    // ⭐ نبضات النجوم المستمرة
     Animated.loop(
       Animated.sequence([
         Animated.timing(starPulse, {
@@ -92,9 +121,18 @@ export default function HomeScreen({ navigation }) {
         }),
       ]),
     ).start();
-
-    return () => subscription?.remove();
   }, []);
+
+  useEffect(() => {
+    if (modalVisible) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [modalVisible]);
 
   const playWelcomeSound = async (childName) => {
     try {
@@ -323,12 +361,93 @@ export default function HomeScreen({ navigation }) {
     setTimeout(() => navigation.navigate("Learning"), 100);
   };
 
+  const handleProfilePress = () => {
+    setQuestion(generateQuestion());
+    setAnswer("");
+    setErrorShake(false);
+    setModalVisible(true);
+  };
+
+  const shakeError = () => {
+    setErrorShake(true);
+    Animated.sequence([
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: -10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 10,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnimation, {
+        toValue: 0,
+        duration: 50,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setErrorShake(false);
+      setTimeout(() => {
+        Animated.timing(scaleAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setModalVisible(false);
+        });
+      }, 500);
+    });
+  };
+
+  const checkAnswer = () => {
+    if (parseInt(answer) === question.answer) {
+      Animated.timing(scaleAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setModalVisible(false);
+        navigation.navigate("ParentMenu");
+      });
+    } else {
+      shakeError();
+    }
+  };
+
+  const handleCancel = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setModalVisible(false);
+    });
+  };
+
+  // حساب الأبعاد
+  const safeTop = Platform.OS === 'ios' ? (isPortrait ? 0 : 0) : (StatusBar.currentHeight || 0);
+  const containerPadding = isPortrait ? 16 : 20;
+  const buttonSize = isPortrait ? (isSmallScreen ? 130 : 140) : 100;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      <View style={styles.container}>
-        {/* 🎈 خلفية ترابية ناعمة */}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: 20,
+          paddingTop: safeTop,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.backgroundPattern}>
           <View style={[styles.floatingShape, styles.shape1]} />
           <View style={[styles.floatingShape, styles.shape2]} />
@@ -336,79 +455,127 @@ export default function HomeScreen({ navigation }) {
           <View style={[styles.floatingShape, styles.shape4]} />
         </View>
 
-        {/* الشريط العلوي: الترحيب + صورة الطفل */}
-        <View style={[styles.topHeader, isPortrait && styles.topHeaderPortrait]}>
-          {/* 👋 ترحيب */}
+        {/* الشريط العلوي */}
+        <View style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingTop: 10,
+          paddingHorizontal: containerPadding,
+          zIndex: 100,
+          marginBottom: isPortrait ? 16 : 8,
+        }}>
           <Animated.View
-            style={[
-              styles.welcomeSection,
-              isPortrait && styles.welcomeSectionPortrait,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
+            style={{
+              flex: 1,
+              alignItems: "flex-start",
+              marginRight: 12,
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
           >
-            <View style={[styles.welcomeBubble, isPortrait && styles.welcomeBubblePortrait]}>
-              <Text style={[styles.helloText, isPortrait && styles.helloTextPortrait]}>مرحبا </Text>
+            <View style={{
+              backgroundColor: COLORS.white,
+              paddingHorizontal: isSmallScreen ? 12 : 14,
+              paddingVertical: isSmallScreen ? 6 : 8,
+              borderRadius: 18,
+              flexDirection: "row",
+              alignItems: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.1,
+              shadowRadius: 6,
+              elevation: 5,
+              borderWidth: 2,
+              borderColor: COLORS.cream,
+            }}>
+              <Text style={{
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: "700",
+                color: COLORS.orange,
+                marginRight: 4,
+              }}>مرحبا </Text>
               {childInfo && (
-                <Text style={[styles.childNameText, isPortrait && styles.childNameTextPortrait]}>{childInfo.name}</Text>
+                <Text style={{
+                  fontSize: isSmallScreen ? 16 : 18,
+                  fontWeight: "900",
+                  color: COLORS.teal,
+                }}>{childInfo.name}</Text>
               )}
             </View>
           </Animated.View>
 
-          {/* 👤 صورة الطفل */}
           <TouchableOpacity
-            onPress={() => navigation.navigate("ParentGate")}
-            style={[styles.profileButton, isPortrait && styles.profileButtonPortrait]}
+            onPress={handleProfilePress}
             activeOpacity={0.9}
           >
-            <View style={styles.profileContainer}>
+            <View style={{ position: "relative" }}>
               {childInfo?.imageUri ? (
                 <Image
                   source={{ uri: childInfo.imageUri }}
-                  style={[styles.profileImage, isPortrait && styles.profileImagePortrait]}
+                  style={{
+                    width: isSmallScreen ? 50 : 55,
+                    height: isSmallScreen ? 50 : 55,
+                    borderRadius: isSmallScreen ? 25 : 27.5,
+                    borderWidth: 3,
+                    borderColor: COLORS.white,
+                  }}
                 />
               ) : (
-                <View style={[styles.profilePlaceholder, isPortrait && styles.profilePlaceholderPortrait]}>
-                  <Text style={[styles.profileEmoji, isPortrait && styles.profileEmojiPortrait]}>😊</Text>
+                <View style={{
+                  width: isSmallScreen ? 50 : 55,
+                  height: isSmallScreen ? 50 : 55,
+                  borderRadius: isSmallScreen ? 25 : 27.5,
+                  backgroundColor: COLORS.white,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: 3,
+                  borderColor: COLORS.yellow,
+                }}>
+                  <Text style={{ fontSize: isSmallScreen ? 24 : 26 }}>😊</Text>
                 </View>
               )}
-              <View style={[styles.profileBorder, isPortrait && styles.profileBorderPortrait]} />
+              <View style={{
+                position: "absolute",
+                width: isSmallScreen ? 56 : 61,
+                height: isSmallScreen ? 56 : 61,
+                borderRadius: isSmallScreen ? 28 : 30.5,
+                borderWidth: 2,
+                borderColor: COLORS.sage,
+                top: -3,
+                left: -3,
+              }} />
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* 🌟 شريط النجوم */}
+        {/* الأسد */}
         <Animated.View
-          style={[
-            styles.starsBar,
-            isPortrait && styles.starsBarPortrait,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: starPulse }],
-            },
-          ]}
-        >
-        </Animated.View>
-
-        {/* 🦁 الأسد */}
-        <Animated.View
-          style={[
-            styles.lionSection,
-            isPortrait && styles.lionSectionPortrait,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: lionTranslateY }],
-            },
-          ]}
+          style={{
+            alignItems: "center",
+            marginTop: 8,
+            paddingHorizontal: containerPadding,
+            marginBottom: isPortrait ? 20 : 8,
+            opacity: fadeAnim,
+            transform: [{ translateY: lionTranslateY }],
+          }}
         >
           <TouchableOpacity
             onPress={playLionEncouragement}
             activeOpacity={0.8}
-            style={styles.lionTouchable}
           >
-            <View style={[styles.lionBox, isPortrait && styles.lionBoxPortrait]}>
+            <View style={{
+              backgroundColor: COLORS.white,
+              borderRadius: isPortrait ? 22 : 18,
+              padding: isPortrait ? 12 : 8,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.1,
+              shadowRadius: 10,
+              elevation: 8,
+              borderWidth: 3,
+              borderColor: COLORS.sage,
+            }}>
               <LionProgress
                 progress={dailyProgress}
                 maxProgress={8}
@@ -419,19 +586,23 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* 🎮 الأزرار الرئيسية */}
+        {/* الأزرار الرئيسية */}
         <Animated.View
-          style={[
-            styles.mainButtons,
-            isPortrait && styles.mainButtonsPortrait,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
+          style={{
+            flexDirection: isPortrait ? "column" : "row",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 16,
+            paddingHorizontal: containerPadding,
+            paddingTop: 8,
+            opacity: fadeAnim,
+          }}
         >
-          {/* 💬 زر التواصل */}
+          {/* زر التواصل */}
           <Animated.View
             style={{
+              width: isPortrait ? "100%" : "45%",
+              maxWidth: 400,
               transform: [
                 { scale: buttonScales.aac },
                 { rotate: aacRotation },
@@ -443,26 +614,43 @@ export default function HomeScreen({ navigation }) {
               onPressIn={() => handlePressIn("aac", "التواصل")}
               onPressOut={() => handlePressOut("aac")}
               activeOpacity={1}
-              style={[styles.bigButton, isPortrait && styles.bigButtonPortrait]}
             >
-              <View style={[styles.buttonCard, styles.aacCard, isPortrait && styles.buttonCardPortrait]}>
-                {/* أيقونة كبيرة */}
-                <View style={styles.iconWrapper}>
-                  <View style={[styles.iconCircle, styles.aacIconBg, isPortrait && styles.iconCirclePortrait]}>
-                    <Image
-                      source={AAC_IMAGE}
-                      style={[styles.buttonIcon, isPortrait && styles.buttonIconPortrait]}
-                      resizeMode="contain"
-                    />
-                  </View>
+              <View style={{
+                height: isPortrait ? (isSmallScreen ? 140 : 160) : 110,
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                <View style={{
+                  borderRadius: 22,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 8,
+                  borderWidth: 4,
+                  backgroundColor: COLORS.white,
+                  borderColor: COLORS.sage,
+                }}>
+                  <Image
+                    source={AAC_IMAGE}
+                    style={{
+                      width: buttonSize,
+                      height: buttonSize,
+                    }}
+                    resizeMode="contain"
+                  />
                 </View>
               </View>
             </TouchableOpacity>
           </Animated.View>
 
-          {/* 📚 زر القصص */}
+          {/* زر القصص */}
           <Animated.View
             style={{
+              width: isPortrait ? "100%" : "45%",
+              maxWidth: 400,
               transform: [
                 { scale: buttonScales.stories },
                 { rotate: storiesRotation },
@@ -474,35 +662,317 @@ export default function HomeScreen({ navigation }) {
               onPressIn={() => handlePressIn("stories", "القصص")}
               onPressOut={() => handlePressOut("stories")}
               activeOpacity={1}
-              style={[styles.bigButton, isPortrait && styles.bigButtonPortrait]}
             >
-              <View style={[styles.buttonCard, styles.storiesCard, isPortrait && styles.buttonCardPortrait]}>
-                {/* أيقونة كبيرة */}
-                <View style={styles.iconWrapper}>
-                  <View style={[styles.iconCircle, styles.storiesIconBg, isPortrait && styles.iconCirclePortrait]}>
-                    <Image
-                      source={STORIES_IMAGE}
-                      style={[styles.buttonIcon, isPortrait && styles.buttonIconPortrait]}
-                      resizeMode="contain"
-                    />
-                  </View>
+              <View style={{
+                height: isPortrait ? (isSmallScreen ? 140 : 160) : 110,
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                <View style={{
+                  borderRadius: 22,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 8,
+                  borderWidth: 4,
+                  backgroundColor: COLORS.white,
+                  borderColor: COLORS.peach,
+                }}>
+                  <Image
+                    source={STORIES_IMAGE}
+                    style={{
+                      width: buttonSize,
+                      height: buttonSize,
+                    }}
+                    resizeMode="contain"
+                  />
                 </View>
               </View>
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
 
-        {/* 🎨 زخرفة سفلية */}
         {!isPortrait && (
-          <View style={styles.bottomEmojis}>
-            <Text style={styles.bottomEmoji}>🌈</Text>
-            <Text style={styles.bottomEmoji}>⭐</Text>
-            <Text style={styles.bottomEmoji}>🎈</Text>
-            <Text style={styles.bottomEmoji}>🎨</Text>
-            <Text style={styles.bottomEmoji}>🌟</Text>
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: 15,
+            marginTop: 8,
+            paddingBottom: 8,
+          }}>
+            <Text style={{ fontSize: 20, opacity: 0.3 }}>🌈</Text>
+            <Text style={{ fontSize: 20, opacity: 0.3 }}>⭐</Text>
+            <Text style={{ fontSize: 20, opacity: 0.3 }}>🎈</Text>
+            <Text style={{ fontSize: 20, opacity: 0.3 }}>🎨</Text>
+            <Text style={{ fontSize: 20, opacity: 0.3 }}>🌟</Text>
           </View>
         )}
-      </View>
+      </ScrollView>
+
+      {/* Modal قفل الوالدين */}
+      <Modal transparent animationType="fade" visible={modalVisible}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.overlay}
+        >
+          <TouchableOpacity
+            style={styles.overlayTouchable}
+            activeOpacity={1}
+            onPress={handleCancel}
+          >
+            <Animated.View
+              style={[
+                {
+                  backgroundColor: COLORS.background,
+                  width: isPortrait ? "88%" : "70%",
+                  maxWidth: 420,
+                  padding: isPortrait ? 22 : 28,
+                  borderRadius: isPortrait ? 25 : 28,
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 16,
+                  elevation: 16,
+                  borderWidth: 4,
+                  borderColor: COLORS.white,
+                  transform: [
+                    { scale: scaleAnim },
+                    { translateX: shakeAnimation },
+                  ],
+                },
+              ]}
+            >
+              <TouchableOpacity activeOpacity={1}>
+                <View style={styles.modalBackgroundPattern}>
+                  <View style={[styles.modalFloatingShape, styles.modalShape1]} />
+                  <View style={[styles.modalFloatingShape, styles.modalShape2]} />
+                </View>
+
+                <TouchableOpacity
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: COLORS.white,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 3,
+                    elevation: 3,
+                    borderWidth: 2,
+                    borderColor: COLORS.cream,
+                    zIndex: 10,
+                  }}
+                  onPress={handleCancel}
+                >
+                  <Text style={{ fontSize: 20, fontWeight: "bold", color: COLORS.textSecondary }}>✕</Text>
+                </TouchableOpacity>
+
+                <View style={{
+                  width: isPortrait ? 75 : 65,
+                  height: isPortrait ? 75 : 65,
+                  borderRadius: isPortrait ? 37.5 : 32.5,
+                  backgroundColor: COLORS.teal,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: isPortrait ? 16 : 12,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 6,
+                  elevation: 5,
+                  borderWidth: 4,
+                  borderColor: COLORS.white,
+                }}>
+                  <Text style={{ fontSize: isPortrait ? 38 : 32 }}>🔒</Text>
+                </View>
+
+                <Text style={{
+                  fontSize: isPortrait ? 24 : 20,
+                  fontWeight: "900",
+                  color: COLORS.darkTeal,
+                  marginBottom: isPortrait ? 6 : 4,
+                }}>للكبار فقط</Text>
+
+                {isPortrait && (
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: COLORS.textSecondary,
+                    marginBottom: 16,
+                  }}>حل المسألة للمتابعة</Text>
+                )}
+
+                <View style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: COLORS.white,
+                  paddingVertical: isPortrait ? 16 : 12,
+                  paddingHorizontal: isPortrait ? 20 : 16,
+                  borderRadius: isPortrait ? 20 : 16,
+                  marginBottom: isPortrait ? 16 : 12,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 6,
+                  elevation: 5,
+                  borderWidth: 3,
+                  borderColor: COLORS.sage,
+                }}>
+                  <Text style={{
+                    fontSize: isPortrait ? 28 : 24,
+                    fontWeight: "900",
+                    color: COLORS.textPrimary,
+                  }}>{question.question}</Text>
+                  <Text style={{
+                    fontSize: isPortrait ? 24 : 20,
+                    fontWeight: "700",
+                    marginHorizontal: isPortrait ? 10 : 8,
+                    color: COLORS.textSecondary,
+                  }}>=</Text>
+                  <Text style={{
+                    fontSize: isPortrait ? 28 : 24,
+                    fontWeight: "900",
+                    color: COLORS.orange,
+                  }}>؟</Text>
+                </View>
+
+                <TextInput
+                  style={{
+                    width: isPortrait ? 110 : 95,
+                    height: isPortrait ? 60 : 52,
+                    fontSize: isPortrait ? 28 : 24,
+                    fontWeight: "900",
+                    textAlign: "center",
+                    borderRadius: isPortrait ? 16 : 14,
+                    borderWidth: 3,
+                    borderColor: errorShake ? COLORS.rust : COLORS.green,
+                    backgroundColor: errorShake ? COLORS.peach : COLORS.white,
+                    marginBottom: isPortrait ? 16 : 12,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 4,
+                    elevation: 3,
+                    color: COLORS.textPrimary,
+                  }}
+                  keyboardType="number-pad"
+                  value={answer}
+                  onChangeText={setAnswer}
+                  placeholder="0"
+                  placeholderTextColor={COLORS.textSecondary}
+                  maxLength={3}
+                  autoFocus={true}
+                  onSubmitEditing={checkAnswer}
+                />
+
+                {errorShake && (
+                  <View style={{
+                    backgroundColor: COLORS.white,
+                    paddingVertical: isPortrait ? 10 : 8,
+                    paddingHorizontal: isPortrait ? 14 : 12,
+                    borderRadius: isPortrait ? 16 : 14,
+                    marginBottom: isPortrait ? 16 : 12,
+                    borderWidth: 2,
+                    borderColor: COLORS.rust,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 3,
+                    elevation: 3,
+                  }}>
+                    <Text style={{
+                      fontSize: isPortrait ? 13 : 12,
+                      fontWeight: "700",
+                      color: COLORS.rust,
+                      textAlign: "center",
+                    }}>
+                      ⚠️ إجابة خاطئة! سيتم إغلاق النافذة...
+                    </Text>
+                  </View>
+                )}
+
+                <View style={{
+                  flexDirection: "row",
+                  gap: 12,
+                  width: "100%",
+                  marginBottom: isPortrait ? 12 : 8,
+                }}>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: COLORS.white,
+                      paddingVertical: isPortrait ? 14 : 12,
+                      borderRadius: isPortrait ? 16 : 14,
+                      alignItems: "center",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.12,
+                      shadowRadius: 4,
+                      elevation: 3,
+                      borderWidth: 2,
+                      borderColor: COLORS.cream,
+                    }}
+                    onPress={handleCancel}
+                  >
+                    <Text style={{
+                      fontSize: isPortrait ? 16 : 15,
+                      fontWeight: "800",
+                      color: COLORS.textPrimary,
+                    }}>إلغاء</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: answer ? COLORS.green : COLORS.cream,
+                      paddingVertical: isPortrait ? 14 : 12,
+                      borderRadius: isPortrait ? 16 : 14,
+                      alignItems: "center",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: answer ? 0.2 : 0.1,
+                      shadowRadius: 4,
+                      elevation: answer ? 5 : 2,
+                      borderWidth: 2,
+                      borderColor: COLORS.white,
+                      opacity: answer ? 1 : 0.6,
+                    }}
+                    onPress={checkAnswer}
+                    disabled={!answer}
+                  >
+                    <Text style={{
+                      fontSize: isPortrait ? 16 : 15,
+                      fontWeight: "800",
+                      color: answer ? COLORS.white : COLORS.textSecondary,
+                    }}>تأكيد</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {isPortrait && (
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: COLORS.textSecondary,
+                    textAlign: "center",
+                  }}>
+                    💡 هذا القفل لحماية إعدادات طفلك
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -517,7 +987,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
 
-  /* 🎈 خلفية ترابية */
   backgroundPattern: {
     position: "absolute",
     width: "100%",
@@ -557,258 +1026,43 @@ const styles = StyleSheet.create({
     right: -20,
   },
 
-  /* الشريط العلوي */
-  topHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: Platform.OS === "ios" ? 55 : 25,
-    paddingHorizontal: 20,
-    zIndex: 100,
-  },
-  topHeaderPortrait: {
-    paddingTop: Platform.OS === "ios" ? 50 : 20,
-    paddingHorizontal: 15,
-  },
-
-  /* 👤 صورة الطفل */
-  profileButton: {
-    zIndex: 100,
-  },
-  profileButtonPortrait: {
-  },
-  profileContainer: {
-    position: "relative",
-  },
-  profileImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 4,
-    borderColor: COLORS.white,
-  },
-  profileImagePortrait: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 3,
-  },
-  profilePlaceholder: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.white,
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 4,
-    borderColor: COLORS.yellow,
   },
-  profilePlaceholderPortrait: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 3,
-  },
-  profileEmoji: {
-    fontSize: 36,
-  },
-  profileEmojiPortrait: {
-    fontSize: 30,
-  },
-  profileBorder: {
-    position: "absolute",
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    borderWidth: 3,
-    borderColor: COLORS.sage,
-    top: -4,
-    left: -4,
-  },
-  profileBorderPortrait: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 2,
-    top: -3,
-    left: -3,
-  },
-
-  /* 🌟 شريط النجوم */
-  starsBar: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 135 : 105,
-    left: 20,
-    flexDirection: "row",
-    gap: 15,
-    zIndex: 100,
-  },
-  starsBarPortrait: {
-    top: Platform.OS === "ios" ? 120 : 90,
-    left: 15,
-  },
-
-  /* 👋 ترحيب */
-  welcomeSection: {
+  overlayTouchable: {
     flex: 1,
-    alignItems: "flex-start",
-    marginRight: 15,
-  },
-  welcomeSectionPortrait: {
-    flex: 1,
-    marginRight: 10,
-  },
-  welcomeBubble: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 3,
-    borderColor: COLORS.cream,
-  },
-  welcomeBubblePortrait: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 3,
-  },
-  helloText: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: COLORS.orange,
-    marginRight: 5,
-  },
-  helloTextPortrait: {
-    fontSize: 18,
-    marginRight: 4,
-  },
-  childNameText: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: COLORS.teal,
-  },
-  childNameTextPortrait: {
-    fontSize: 20,
-  },
-
-  /* 🦁 الأسد */
-  lionSection: {
-    alignItems: "center",
-    marginTop: 30,
-    paddingHorizontal: 20,
-  },
-  lionSectionPortrait: {
-    marginTop: 25,
-    paddingHorizontal: 15,
-  },
-  lionTouchable: {
-    borderRadius: 30,
-  },
-  lionBox: {
-    backgroundColor: COLORS.white,
-    borderRadius: 30,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 15,
-    elevation: 10,
-    borderWidth: 4,
-    borderColor: COLORS.sage,
-  },
-  lionBoxPortrait: {
-    borderRadius: 25,
-    padding: 15,
-    borderWidth: 3,
-  },
-
-  /* 🎮 الأزرار الرئيسية */
-  mainButtons: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-  },
-  mainButtonsPortrait: {
-    flexDirection: "column",
-    gap: 15,
-    paddingHorizontal: 15,
-    paddingVertical: 20,
-  },
-
-  bigButton: {
-    width: Dimensions.get("window").width * 0.42,
-    maxWidth: 250,
-  },
-  bigButtonPortrait: {
     width: "100%",
-    maxWidth: 350,
-  },
-
-  buttonCard: {
-    height: 250,
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  buttonCardPortrait: {
-    height: 180,
-  },
-
-  /* أيقونات الأزرار */
-  iconCircle: {
-    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 10,
-    borderWidth: 5,
-  },
-  iconCirclePortrait: {
-    borderRadius: 25,
-    borderWidth: 4,
-  },
-  aacIconBg: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.sage,
-  },
-  storiesIconBg: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.peach,
-  },
-  buttonIcon: {
-    width: 200,
-    height: 200,
-  },
-  buttonIconPortrait: {
-    width: 150,
-    height: 150,
   },
 
-  /* 🎨 زخرفة سفلية */
-  bottomEmojis: {
+  modalBackgroundPattern: {
     position: "absolute",
-    bottom: 15,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
+    width: "100%",
+    height: "100%",
+    borderRadius: 25,
+    overflow: "hidden",
   },
-  bottomEmoji: {
-    fontSize: 30,
-    opacity: 0.3,
+  modalFloatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
+  },
+  modalShape1: {
+    width: 130,
+    height: 130,
+    backgroundColor: COLORS.green,
+    top: -40,
+    right: -40,
+  },
+  modalShape2: {
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.orange,
+    bottom: -35,
+    left: -35,
   },
 });

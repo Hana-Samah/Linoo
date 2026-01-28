@@ -25,15 +25,15 @@ export default function LionProgress({
 
   // صور الأسد (9 مراحل: من 0 إلى 8)
   const lionImages = {
-    0: require('../../assets/lion/lion_0.png'),
-    1: require('../../assets/lion/lion_1.png'),
-    2: require('../../assets/lion/lion_2.png'),
-    3: require('../../assets/lion/lion_3.png'),
-    4: require('../../assets/lion/lion_4.png'),
-    5: require('../../assets/lion/lion_5.png'),
-    6: require('../../assets/lion/lion_6.png'),
-    7: require('../../assets/lion/lion_7.png'),
-    8: require('../../assets/lion/lion_8.png'),
+    0: require('../../assets/lion/lion_0.webp'),
+    1: require('../../assets/lion/lion_1.webp'),
+    2: require('../../assets/lion/lion_2.webp'),
+    3: require('../../assets/lion/lion_3.webp'),
+    4: require('../../assets/lion/lion_4.webp'),
+    5: require('../../assets/lion/lion_5.webp'),
+    6: require('../../assets/lion/lion_6.webp'),
+    7: require('../../assets/lion/lion_7.webp'),
+    8: require('../../assets/lion/lion_8.webp'),
   };
 
   useEffect(() => {

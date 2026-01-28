@@ -7,23 +7,38 @@ import {
   Alert,
   Image,
   ScrollView,
+  Dimensions,
+  Platform,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   getCategories,
   saveCategories,
 } from "../storage/categoriesStorage";
 import * as ImagePicker from "expo-image-picker";
+import { COLORS } from "../styles/colors";
+
+const icons = {
+  back: require("../../assets/backspace-icon.webp"),
+  category: require("../../assets/categories-icon.webp"),
+  gallery: require("../../assets/gallery-icon.webp"),
+  camera: require("../../assets/camera-icon.webp"),
+  save: require("../../assets/save-icon.webp"),
+};
 
 export default function CategoryFormScreen({ navigation, route }) {
   const editingCategory = route.params?.category;
   const [name, setName] = useState(editingCategory?.name || "");
   const [icon, setIcon] = useState(editingCategory?.icon || "📁");
   const [imageUri, setImageUri] = useState(editingCategory?.imageUri || null);
+  const [screenDimensions, setScreenDimensions] = useState(
+    Dimensions.get("window")
+  );
+  const isPortrait = screenDimensions.height > screenDimensions.width;
 
   const iconOptions = [
     "😊",
-    "🍎",
+    "🎁",
     "🙋",
     "👨‍👩‍👧‍👦",
     "⚽",
@@ -31,14 +46,21 @@ export default function CategoryFormScreen({ navigation, route }) {
     "🚗",
     "📚",
     "🎮",
-    "🐕",
+    "🍕",
     "🌈",
     "🎨",
     "🎵",
     "💼",
-    "🏥",
+    "🥗",
     "🏫",
   ];
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", ({ window }) => {
+      setScreenDimensions(window);
+    });
+    return () => subscription?.remove();
+  }, []);
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -104,38 +126,49 @@ export default function CategoryFormScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
+      {/* 🎨 خلفية ترابية */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.floatingShape, styles.shape1]} />
+        <View style={[styles.floatingShape, styles.shape2]} />
+        <View style={[styles.floatingShape, styles.shape3]} />
+        <View style={[styles.floatingShape, styles.shape4]} />
+      </View>
+
       {/* الهيدر */}
-      <View style={styles.header}>
+      <View style={[styles.header, isPortrait && styles.headerPortrait]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {editingCategory ? "تعديل التصنيف" : "تصنيف جديد"}
-        </Text>
-        <View style={styles.headerIconContainer}>
-          <Text style={styles.headerIcon}>📁</Text>
+
+        <View style={styles.headerContent}>
+          <Image source={icons.category} style={styles.headerIcon} resizeMode="contain" />
+          <Text style={[styles.headerTitle, isPortrait && styles.headerTitlePortrait]}>
+            {editingCategory ? "تعديل التصنيف" : "تصنيف جديد"}
+          </Text>
         </View>
+
+        <View style={styles.spacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, isPortrait && styles.contentPortrait]}>
         {/* الاسم */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📝 اسم التصنيف</Text>
+          <Text style={styles.sectionTitle}> اسم التصنيف</Text>
           <TextInput
             style={styles.input}
             placeholder="مثال: الطعام"
             value={name}
             onChangeText={setName}
-            placeholderTextColor="#9A9A9A"
+            placeholderTextColor={COLORS.text.light}
           />
         </View>
 
         {/* الأيقونة */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>😊 اختر أيقونة</Text>
+          <Text style={styles.sectionTitle}> اختر أيقونة او  صورة </Text>
           <View style={styles.iconGrid}>
             {iconOptions.map((emoji) => (
               <TouchableOpacity
@@ -154,23 +187,25 @@ export default function CategoryFormScreen({ navigation, route }) {
 
         {/* الصورة */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🖼️ صورة (اختياري)</Text>
+          <Text style={styles.sectionTitle}> صورة (اختياري)</Text>
           {imageUri && (
-            <Image source={{ uri: imageUri }} style={styles.preview} />
+            <View style={styles.previewContainer}>
+              <Image source={{ uri: imageUri }} style={styles.preview} />
+            </View>
           )}
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.secondaryButton}
               onPress={pickImage}
             >
-              <Text style={styles.secondaryButtonIcon}>📂</Text>
+              <Image source={icons.gallery} style={styles.secondaryButtonIcon} resizeMode="contain" />
               <Text style={styles.secondaryButtonText}>المعرض</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.secondaryButton}
               onPress={takePhoto}
             >
-              <Text style={styles.secondaryButtonIcon}>📷</Text>
+              <Image source={icons.camera} style={styles.secondaryButtonIcon} resizeMode="contain" />
               <Text style={styles.secondaryButtonText}>كاميرا</Text>
             </TouchableOpacity>
           </View>
@@ -178,7 +213,8 @@ export default function CategoryFormScreen({ navigation, route }) {
 
         {/* زر الحفظ */}
         <TouchableOpacity style={styles.saveButton} onPress={save}>
-          <Text style={styles.saveText}>💾 حفظ التصنيف</Text>
+          <Image source={icons.save} style={styles.saveIcon} resizeMode="contain" />
+          <Text style={styles.saveText}>حفظ التصنيف</Text>
         </TouchableOpacity>
 
         {/* مسافة إضافية */}
@@ -191,125 +227,198 @@ export default function CategoryFormScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FAF8F5",
+    backgroundColor: COLORS.background,
+  },
+
+  /* 🎨 خلفية ترابية */
+  backgroundPattern: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  floatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
+  },
+  shape1: {
+    width: 200,
+    height: 200,
+    backgroundColor: COLORS.primary.green,
+    top: -50,
+    right: -60,
+  },
+  shape2: {
+    width: 150,
+    height: 150,
+    backgroundColor: COLORS.secondary.orange,
+    bottom: -40,
+    left: -50,
+  },
+  shape3: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.primary.teal,
+    top: "30%",
+    left: -30,
+  },
+  shape4: {
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.secondary.peach,
+    bottom: "25%",
+    right: -20,
   },
 
   /* ====== الهيدر ====== */
   header: {
-    backgroundColor: "#B5C9B4",
-    paddingTop: 50,
+    backgroundColor: "transparent",
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    zIndex: 100,
+  },
+  headerPortrait: {
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
+    paddingHorizontal: 15,
+  },
+  backButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
-    elevation: 8,
-  },
-  backButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    justifyContent: "center",
-    alignItems: "center",
+    elevation: 6,
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
   },
   backIcon: {
-    fontSize: 28,
-    color: "#FFFFFF",
-    fontWeight: "bold",
+    width: 55,
+    height: 55,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  headerIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    justifyContent: "center",
+  headerContent: {
+    flex: 1,
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
   },
   headerIcon: {
+    width: 32,
+    height: 32,
+    tintColor: COLORS.primary.teal,
+  },
+  headerTitle: {
     fontSize: 28,
+    fontWeight: "900",
+    color: COLORS.primary.teal,
+  },
+  headerTitlePortrait: {
+    fontSize: 24,
+  },
+  spacer: {
+    width: 60,
   },
 
   /* ====== المحتوى ====== */
   content: {
     padding: 20,
   },
+  contentPortrait: {
+    padding: 15,
+  },
+
+  /* ====== القسم ====== */
   section: {
-    marginBottom: 30,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 25,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 4,
+    borderColor: COLORS.primary.sage,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#4A6B6F",
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: "900",
+    color: COLORS.text.primary,
+    marginBottom: 15,
   },
 
   /* ====== الحقول ====== */
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.neutral.cream,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 18,
+    borderRadius: 20,
     fontSize: 18,
-    fontWeight: "500",
-    color: "#4A4A4A",
+    fontWeight: "600",
+    color: COLORS.text.primary,
     borderWidth: 3,
-    borderColor: "#E0E0E0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: COLORS.neutral.white,
   },
 
   /* ====== شبكة الأيقونات ====== */
   iconGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 12,
   },
   iconButton: {
     width: "22%",
     aspectRatio: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    backgroundColor: COLORS.neutral.cream,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#E0E0E0",
+    borderColor: COLORS.neutral.white,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   iconActive: {
-    backgroundColor: "#B5C9B4",
-    borderColor: "#7FA896",
+    backgroundColor: COLORS.primary.sage,
+    borderColor: COLORS.primary.green,
     transform: [{ scale: 1.05 }],
+    shadowColor: COLORS.primary.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   iconEmoji: {
     fontSize: 40,
   },
 
   /* ====== الصورة ====== */
-  preview: {
-    width: 150,
-    height: 150,
-    borderRadius: 20,
-    alignSelf: "center",
+  previewContainer: {
+    alignItems: "center",
     marginBottom: 15,
+  },
+  preview: {
+    width: 160,
+    height: 160,
+    borderRadius: 25,
     borderWidth: 4,
-    borderColor: "#E0E0E0",
+    borderColor: COLORS.neutral.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   buttonRow: {
     flexDirection: "row",
@@ -317,42 +426,56 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: "#E8C68E",
+    backgroundColor: COLORS.secondary.yellow,
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: 20,
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: COLORS.neutral.white,
   },
   secondaryButtonIcon: {
-    fontSize: 28,
-    marginBottom: 4,
+    width: 24,
+    height: 24,
   },
   secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#4A4A4A",
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.neutral.white,
   },
 
   /* ====== زر الحفظ ====== */
   saveButton: {
-    backgroundColor: "#B5C9B4",
-    paddingVertical: 18,
-    borderRadius: 20,
+    backgroundColor: COLORS.primary.teal,
+    paddingVertical: 20,
+    borderRadius: 25,
     alignItems: "center",
-    shadowColor: "#B5C9B4",
-    shadowOffset: { width: 0, height: 6 },
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    shadowColor: COLORS.primary.teal,
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowRadius: 15,
+    elevation: 15,
+    borderWidth: 5,
+    borderColor: COLORS.neutral.white,
+  },
+  saveIcon: {
+    width: 28,
+    height: 28,
   },
   saveText: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
+    fontWeight: "900",
+    color: COLORS.neutral.white,
   },
 
   /* ====== مسافة إضافية ====== */

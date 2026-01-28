@@ -6,8 +6,10 @@ import {
   ScrollView,
   Image,
   Animated,
-  Dimensions,
   Platform,
+  SafeAreaView,
+  StatusBar,
+  useWindowDimensions,
 } from "react-native";
 import { useState, useCallback, useRef, useEffect } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -29,16 +31,20 @@ import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../styles/colors";
 
 const icons = {
-  home: require("../../assets/home-icon.png"),
-  speaker: require("../../assets/speaker-icon.png"),
-  backspace: require("../../assets/backspace-icon.png"),
-  clear: require("../../assets/clear-icon.png"),
-  star: require("../../assets/lion/lion_8.png"),
+  home: require("../../assets/home-icon.webp"),
+  speaker: require("../../assets/speaker-icon.webp"),
+  backspace: require("../../assets/backspace-icon.webp"),
+  clear: require("../../assets/clear-icon.webp"),
+  star: require("../../assets/lion/lion_8.webp"),
+  favorite: require("../../assets/manager/favorite-icon.webp"),
 };
 
 let currentSound = null;
 
 export default function AACScreen({ navigation }) {
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+
   const [sentence, setSentence] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("fav");
   const [words, setWords] = useState([]);
@@ -46,25 +52,11 @@ export default function AACScreen({ navigation }) {
   const [pressedWord, setPressedWord] = useState(null);
   const [showStars, setShowStars] = useState(false);
   const [starsEarned, setStarsEarned] = useState(0);
-  const [screenDimensions, setScreenDimensions] = useState(
-    Dimensions.get("window")
-  );
 
   const starsAnim = useRef(new Animated.Value(0)).current;
 
-  // تحديد الوضع (عمودي أو أفقي)
-  const isPortrait = screenDimensions.height > screenDimensions.width;
-
-  useEffect(() => {
-    const subscription = Dimensions.addEventListener("change", ({ window }) => {
-      setScreenDimensions(window);
-    });
-    return () => subscription?.remove();
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
-      // فتح جميع الاتجاهات
       ScreenOrientation.unlockAsync();
 
       const loadData = async () => {
@@ -80,14 +72,25 @@ export default function AACScreen({ navigation }) {
         ]);
 
         setCategories([
-          { id: "fav", name: "المفضلة", icon: "⭐" },
+          {
+            id: "fav",
+            name: "المفضلة",
+            icon: (
+              <Image
+                source={icons.favorite}
+                style={[
+                  { width: isPortrait ? 45 : 40, height: isPortrait ? 45 : 40 },
+                ]}
+              />
+            ),
+          },
           ...storedCategories,
         ]);
       };
 
       loadData();
       updateDailyStreak();
-    }, [])
+    }, []),
   );
 
   const showStarsAnimation = (stars) => {
@@ -161,7 +164,7 @@ export default function AACScreen({ navigation }) {
         typeof word.audioUri === "string"
           ? { uri: word.audioUri }
           : word.audioUri,
-        { shouldPlay: true }
+        { shouldPlay: true },
       );
 
       currentSound = sound;
@@ -207,7 +210,7 @@ export default function AACScreen({ navigation }) {
             typeof word.audioUri === "string"
               ? { uri: word.audioUri }
               : word.audioUri,
-            { shouldPlay: true }
+            { shouldPlay: true },
           ).then(({ sound }) => {
             currentSound = sound;
 
@@ -236,7 +239,7 @@ export default function AACScreen({ navigation }) {
 
     const progressResult = await addDailyProgress(
       "AAC_SENTENCE",
-      "تكوين جملة كاملة"
+      "تكوين جملة كاملة",
     );
     if (progressResult && progressResult.hairGrown) {
       console.log(`🦁 ${progressResult.message}`);
@@ -245,211 +248,420 @@ export default function AACScreen({ navigation }) {
 
   const filteredWords = words.filter((w) => w.category === selectedCategory);
 
-  return (
-    <View style={styles.container}>
-      {/* 🎨 خلفية ترابية متحركة */}
-      <View style={styles.backgroundPattern}>
-        <View style={[styles.floatingShape, styles.shape1]} />
-        <View style={[styles.floatingShape, styles.shape2]} />
-        <View style={[styles.floatingShape, styles.shape3]} />
-        <View style={[styles.floatingShape, styles.shape4]} />
-      </View>
+  // حساب عدد الأعمدة وعرض المربع
+  const getGridLayout = () => {
+    if (isPortrait) {
+      // في العمودي: 3 أعمدة
+      const columns = 3;
+      const gap = 8;
+      const horizontalPadding = 30; // 15 * 2
+      const availableWidth = width - horizontalPadding - gap * (columns - 1);
+      const cardWidth = availableWidth / columns;
+      return { columns, cardWidth, gap };
+    } else {
+      // في الأفقي: 6 أعمدة
+      const columns = 6;
+      const gap = 10;
+      const horizontalPadding = 30; // 15 * 2
+      const availableWidth = width - horizontalPadding - gap * (columns - 1);
+      const cardWidth = availableWidth / columns;
+      return { columns, cardWidth, gap };
+    }
+  };
 
-      {/* نافذة النجوم المنبثقة */}
-      {showStars && (
-        <Animated.View
+  const { columns, cardWidth, gap } = getGridLayout();
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+
+      <View style={styles.container}>
+        {/* 🎨 خلفية ترابية متحركة */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.floatingShape, styles.shape1]} />
+          <View style={[styles.floatingShape, styles.shape2]} />
+          <View style={[styles.floatingShape, styles.shape3]} />
+          <View style={[styles.floatingShape, styles.shape4]} />
+        </View>
+
+        {/* نافذة النجوم المنبثقة */}
+        {showStars && (
+          <Animated.View
+            style={[
+              styles.starsPopup,
+              {
+                opacity: starsAnim,
+                transform: [
+                  {
+                    translateY: starsAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -20],
+                    }),
+                  },
+                  {
+                    scale: starsAnim.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.5, 1.2, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.starsText}>+{starsEarned} </Text>
+            <Image source={icons.star} style={styles.starIcon} />
+          </Animated.View>
+        )}
+
+        {/* الصف العلوي */}
+        <View
           style={[
-            styles.starsPopup,
+            styles.topBar,
             {
-              opacity: starsAnim,
-              transform: [
-                {
-                  translateY: starsAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -20],
-                  }),
-                },
-                {
-                  scale: starsAnim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [0.5, 1.2, 1],
-                  }),
-                },
-              ],
+              paddingTop: isPortrait ? 10 : 8,
+              paddingHorizontal: isPortrait ? 15 : 20,
+              paddingBottom: isPortrait ? 10 : 8,
             },
           ]}
         >
-          <Text style={styles.starsText}>+{starsEarned} </Text>
-          <Image source={icons.star} style={styles.starIcon} />
-        </Animated.View>
-      )}
+          {/* زر الرجوع */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Home")}
+            style={[
+              styles.homeButton,
+              { width: isPortrait ? 50 : 45, height: isPortrait ? 50 : 45 },
+            ]}
+          >
+            <Image
+              source={icons.home}
+              style={[
+                styles.homeIcon,
+                { width: isPortrait ? 28 : 26, height: isPortrait ? 28 : 26 },
+              ]}
+            />
+          </TouchableOpacity>
 
-      {/* الصف العلوي */}
-      <View style={[styles.topBar, isPortrait && styles.topBarPortrait]}>
-        {/* زر الرجوع */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Home")}
-          style={styles.homeButton}
-        >
-          <Image source={icons.home} style={styles.homeIcon} />
-        </TouchableOpacity>
-
-        {/* شريط الجملة */}
-        <View style={[styles.sentenceWrapper, isPortrait && styles.sentenceWrapperPortrait]}>
-          <View style={[styles.sentenceContainer, isPortrait && styles.sentenceContainerPortrait]}>
-            <ScrollView
-              horizontal
-              contentContainerStyle={styles.sentenceScroll}
-              showsHorizontalScrollIndicator={false}
+          {/* شريط الجملة */}
+          <View
+            style={[
+              styles.sentenceWrapper,
+              { flex: 1, marginHorizontal: isPortrait ? 10 : 12 },
+            ]}
+          >
+            <View
+              style={[
+                styles.sentenceContainer,
+                {
+                  height: isPortrait ? 140 : 100,
+                  borderRadius: isPortrait ? 30 : 25,
+                  paddingHorizontal: isPortrait ? 12 : 10,
+                },
+              ]}
             >
-              {sentence.length === 0 ? (
-                <View style={styles.emptyMessage}>
-                  <Text style={styles.emptyText}>اختر كلمات لتكوين جملة</Text>
-                </View>
-              ) : (
-                sentence.map((w, i) => (
-                  <View key={i} style={[styles.sentenceWord, isPortrait && styles.sentenceWordPortrait]}>
-                    <View style={styles.sentenceImageContainer}>
-                      {w.imageUri ? (
-                        <Image
-                          source={{ uri: w.imageUri }}
-                          style={styles.sentenceImage}
-                        />
-                      ) : (
-                        <View style={styles.sentencePlaceholder}>
-                          <Text style={styles.placeholderText}>صورة</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.sentenceText} numberOfLines={2}>
-                      {w.text}
+              <ScrollView
+                horizontal
+                contentContainerStyle={styles.sentenceScroll}
+                showsHorizontalScrollIndicator={false}
+              >
+                {sentence.length === 0 ? (
+                  <View style={styles.emptyMessage}>
+                    <Text
+                      style={[
+                        styles.emptyText,
+                        { fontSize: isPortrait ? 14 : 12 },
+                      ]}
+                    >
+                      اختر كلمات لتكوين جملة
                     </Text>
                   </View>
-                ))
-              )}
-            </ScrollView>
+                ) : (
+                  sentence.map((w, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.sentenceWord,
+                        {
+                          width: isPortrait ? 90 : 75,
+                          height: isPortrait ? 85 : 70,
+                          marginHorizontal: isPortrait ? 4 : 3,
+                          borderRadius: isPortrait ? 16 : 14,
+                        },
+                      ]}
+                    >
+                      <View style={styles.sentenceImageContainer}>
+                        {w.imageUri ? (
+                          <Image
+                            source={{ uri: w.imageUri }}
+                            style={styles.sentenceImage}
+                          />
+                        ) : (
+                          <View style={styles.sentencePlaceholder}>
+                            <Text
+                              style={[
+                                styles.placeholderText,
+                                { fontSize: isPortrait ? 11 : 10 },
+                              ]}
+                            >
+                              صورة
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.sentenceText,
+                          { fontSize: isPortrait ? 10 : 9 },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {w.text}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+
+            {/* زر النطق */}
+            <TouchableOpacity
+              onPress={speakSentence}
+              disabled={sentence.length === 0}
+              style={[
+                styles.speakButton,
+                {
+                  width: isPortrait ? 60 : 55,
+                  height: isPortrait ? 60 : 55,
+                  borderRadius: isPortrait ? 30 : 27.5,
+                  marginTop: isPortrait ? 12 : 8,
+                },
+                sentence.length === 0 && styles.buttonDisabled,
+              ]}
+            >
+              <Image
+                source={icons.speaker}
+                style={[
+                  styles.speakIcon,
+                  { width: isPortrait ? 30 : 28, height: isPortrait ? 30 : 28 },
+                ]}
+              />
+            </TouchableOpacity>
           </View>
 
-          {/* زر النطق */}
+          {/* زر المسح */}
           <TouchableOpacity
-            onPress={speakSentence}
+            onPress={() => setSentence([])}
             disabled={sentence.length === 0}
             style={[
-              styles.speakButton,
+              styles.clearButton,
+              {
+                width: isPortrait ? 50 : 45,
+                height: isPortrait ? 50 : 45,
+                borderRadius: isPortrait ? 25 : 22.5,
+              },
               sentence.length === 0 && styles.buttonDisabled,
             ]}
           >
-            <Image source={icons.speaker} style={styles.speakIcon} />
+            <Image
+              source={icons.clear}
+              style={[
+                styles.clearIcon,
+                { width: isPortrait ? 24 : 22, height: isPortrait ? 24 : 22 },
+              ]}
+            />
           </TouchableOpacity>
         </View>
 
-        {/* زر المسح */}
-        <TouchableOpacity
-          onPress={() => setSentence([])}
-          disabled={sentence.length === 0}
+        {/* المحتوى الرئيسي */}
+        <View
           style={[
-            styles.clearButton,
-            sentence.length === 0 && styles.buttonDisabled,
+            styles.mainContent,
+            {
+              flexDirection: isPortrait ? "column" : "row",
+              paddingHorizontal: isPortrait ? 15 : 20,
+              paddingTop: isPortrait ? 12 : 10,
+              paddingBottom: isPortrait ? 15 : 10,
+            },
           ]}
         >
-          <Image source={icons.clear} style={styles.clearIcon} />
-        </TouchableOpacity>
-      </View>
-
-      {/* المحتوى الرئيسي */}
-      <View style={[styles.mainContent, isPortrait && styles.mainContentPortrait]}>
-        {/* لوحة الفئات */}
-        <View style={[styles.categoriesPanel, isPortrait && styles.categoriesPanelPortrait]}>
-          <ScrollView 
-            style={styles.categoriesList}
-            horizontal={isPortrait}
-            showsHorizontalScrollIndicator={false}
-            showsVerticalScrollIndicator={false}
+          {/* لوحة الفئات */}
+          <View
+            style={[
+              styles.categoriesPanel,
+              isPortrait
+                ? {
+                    width: "100%",
+                    height: 100,
+                    marginBottom: 10,
+                  }
+                : {
+                    width: 100,
+                    marginRight: 15,
+                  },
+            ]}
           >
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                onPress={() => setSelectedCategory(cat.id)}
+            <ScrollView
+              style={styles.categoriesList}
+              horizontal={isPortrait}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+            >
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat.id)}
+                  style={[
+                    styles.categoryButton,
+                    isPortrait
+                      ? {
+                          minWidth: 85,
+                          minHeight: 85,
+                          marginHorizontal: 5,
+                          marginVertical: 0,
+                          paddingVertical: 8,
+                          paddingHorizontal: 8,
+                          borderRadius: 18,
+                        }
+                      : {
+                          minHeight: 80,
+                          marginVertical: 5,
+                          paddingVertical: 10,
+                          paddingHorizontal: 8,
+                          borderRadius: 18,
+                        },
+                    selectedCategory === cat.id && styles.categoryActive,
+                  ]}
+                >
+                  <View style={styles.categoryIconContainer}>
+                    {cat.imageUri ? (
+                      <Image
+                        source={{ uri: cat.imageUri }}
+                        style={[
+                          styles.categoryImage,
+                          {
+                            width: isPortrait ? 45 : 40,
+                            height: isPortrait ? 45 : 40,
+                          },
+                        ]}
+                      />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.categoryEmoji,
+                          { fontSize: isPortrait ? 32 : 28 },
+                        ]}
+                      >
+                        {cat.icon || "📁"}
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      {
+                        fontSize: isPortrait ? 10 : 9,
+                      },
+                      selectedCategory === cat.id && styles.categoryTextActive,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* منطقة الكلمات - شبكة في الوسط */}
+          <View style={styles.wordsArea}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View
                 style={[
-                  styles.categoryButton,
-                  isPortrait && styles.categoryButtonPortrait,
-                  selectedCategory === cat.id && styles.categoryActive,
+                  styles.wordsGrid,
+                  {
+                    gap: gap,
+                    justifyContent: "center",
+                  },
                 ]}
               >
-                <View style={styles.categoryIconContainer}>
-                  {cat.imageUri ? (
-                    <Image
-                      source={{ uri: cat.imageUri }}
-                      style={styles.categoryImage}
-                    />
-                  ) : (
-                    <Text style={styles.categoryEmoji}>{cat.icon || "📁"}</Text>
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.categoryText,
-                    selectedCategory === cat.id && styles.categoryTextActive,
-                  ]}
-                  numberOfLines={2}
-                >
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* منطقة الكلمات */}
-        <View style={styles.wordsArea}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={styles.wordsGrid}>
-              {filteredWords.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>
-                    لا توجد كلمات في هذه الفئة
-                  </Text>
-                </View>
-              ) : (
-                filteredWords.map((word) => (
-                  <TouchableOpacity
-                    key={word.id}
-                    onPress={() => playWordAudio(word)}
-                    style={[
-                      styles.wordCard,
-                      isPortrait && styles.wordCardPortrait,
-                      pressedWord === word.id && styles.wordCardPressed,
-                    ]}
-                  >
-                    <View style={styles.wordImageContainer}>
-                      {word.imageUri ? (
-                        <Image
-                          source={{ uri: word.imageUri }}
-                          style={styles.wordImage}
-                        />
-                      ) : (
-                        <View style={styles.wordPlaceholder}>
-                          <Text style={styles.placeholderText}>صورة</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.wordLabel}>
-                      <Text style={styles.wordText} numberOfLines={2}>
-                        {word.text}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          </ScrollView>
+                {filteredWords.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>
+                      لا توجد كلمات في هذه الفئة
+                    </Text>
+                  </View>
+                ) : (
+                  filteredWords.map((word) => (
+                    <TouchableOpacity
+                      key={word.id}
+                      onPress={() => playWordAudio(word)}
+                      style={[
+                        styles.wordCard,
+                        {
+                          width: cardWidth,
+                          height: isPortrait
+                            ? cardWidth * 1.15
+                            : cardWidth * 1.2,
+                          marginBottom: gap,
+                          borderRadius: isPortrait ? 16 : 14,
+                        },
+                        pressedWord === word.id && styles.wordCardPressed,
+                      ]}
+                    >
+                      <View style={styles.wordImageContainer}>
+                        {word.imageUri ? (
+                          <Image
+                            source={{ uri: word.imageUri }}
+                            style={styles.wordImage}
+                          />
+                        ) : (
+                          <View style={styles.wordPlaceholder}>
+                            <Text
+                              style={[
+                                styles.placeholderText,
+                                { fontSize: isPortrait ? 12 : 11 },
+                              ]}
+                            >
+                              صورة
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View
+                        style={[
+                          styles.wordLabel,
+                          {
+                            paddingVertical: isPortrait ? 6 : 5,
+                            paddingHorizontal: isPortrait ? 4 : 3,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.wordText,
+                            { fontSize: isPortrait ? 11 : 10 },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {word.text}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </ScrollView>
+          </View>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -531,20 +743,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    padding: 15,
-    paddingTop: Platform.OS === "ios" ? 50 : 20,
-    gap: 12,
-  },
-  topBarPortrait: {
-    paddingTop: Platform.OS === "ios" ? 60 : 30,
-    paddingHorizontal: 10,
+    gap: 10,
   },
 
   // زر الرجوع
   homeButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    borderRadius: 25,
     backgroundColor: COLORS.primary.teal,
     justifyContent: "center",
     alignItems: "center",
@@ -553,55 +757,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 6,
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: COLORS.neutral.white,
   },
   homeIcon: {
-    width: 32,
-    height: 32,
     tintColor: COLORS.neutral.white,
   },
 
   // شريط الجملة
   sentenceWrapper: {
-    flex: 1,
     alignItems: "center",
-  },
-  sentenceWrapperPortrait: {
-    flex: 1,
   },
   sentenceContainer: {
     width: "100%",
-    height: 180,
     backgroundColor: COLORS.primary.sage,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    borderBottomRightRadius: 60,
-    borderBottomLeftRadius: 60,
+    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 30,
     alignItems: "center",
-    paddingHorizontal: 15,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 6,
-    marginTop: -40,
+    marginTop: -20,
     overflow: "hidden",
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: COLORS.neutral.white,
-  },
-  sentenceContainerPortrait: {
-    height: 140,
-    borderBottomRightRadius: 45,
-    borderBottomLeftRadius: 45,
-    marginTop: -30,
   },
   sentenceScroll: {
     flexDirection: "row-reverse",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    minHeight: 130,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    minHeight: 90,
   },
   emptyMessage: {
     flexDirection: "row",
@@ -610,7 +800,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emptyText: {
-    fontSize: 16,
     color: COLORS.neutral.white,
     fontWeight: "700",
   },
@@ -618,22 +807,14 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
     overflow: "hidden",
-    marginHorizontal: 5,
-    width: 120,
-    height: 115,
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: COLORS.primary.green,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 4,
-  },
-  sentenceWordPortrait: {
-    width: 100,
-    height: 100,
   },
   sentenceImageContainer: {
     width: "100%",
@@ -652,13 +833,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.cream,
   },
   sentenceText: {
-    fontSize: 11,
     fontWeight: "700",
     color: COLORS.text.primary,
     textAlign: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    minHeight: 35,
+    paddingVertical: 4,
+    paddingHorizontal: 3,
+    minHeight: 25,
     backgroundColor: COLORS.neutral.white,
     borderTopWidth: 2,
     borderTopColor: COLORS.primary.green,
@@ -666,34 +846,25 @@ const styles = StyleSheet.create({
 
   // زر النطق
   speakButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
     backgroundColor: COLORS.secondary.orange,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 5,
+    borderWidth: 4,
     borderColor: COLORS.neutral.white,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
-    marginTop: 15,
   },
   speakIcon: {
-    width: 34,
-    height: 34,
-    tintColor: COLORS.neutral.white,
+    // sizes set dynamically
   },
 
   // زر المسح
   clearButton: {
-    borderWidth: 5,
+    borderWidth: 3,
     borderColor: COLORS.neutral.white,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     backgroundColor: COLORS.primary.darkTeal,
     justifyContent: "center",
     alignItems: "center",
@@ -704,9 +875,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   clearIcon: {
-    width: 28,
-    height: 28,
-    tintColor: COLORS.neutral.white,
+    // sizes set dynamically
   },
 
   buttonDisabled: {
@@ -716,54 +885,26 @@ const styles = StyleSheet.create({
   // المحتوى الرئيسي
   mainContent: {
     flex: 1,
-    flexDirection: "row",
-    paddingHorizontal: 15,
-    paddingTop: 15,
-    paddingBottom: 15,
-  },
-  mainContentPortrait: {
-    flexDirection: "column",
-    paddingHorizontal: 10,
-    paddingTop: 10,
+    gap: 0,
   },
 
   // لوحة الفئات
   categoriesPanel: {
-    width: 110,
     backgroundColor: "transparent",
-    marginRight: 15,
-  },
-  categoriesPanelPortrait: {
-    width: "100%",
-    height: 120,
-    marginRight: 0,
-    marginBottom: 10,
   },
   categoriesList: {
     paddingVertical: 5,
   },
   categoryButton: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    marginVertical: 6,
     alignItems: "center",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: COLORS.neutral.cream,
-    minHeight: 95,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 5,
     elevation: 4,
-  },
-  categoryButtonPortrait: {
-    minWidth: 100,
-    minHeight: 100,
-    marginHorizontal: 6,
-    marginVertical: 0,
-    paddingVertical: 10,
   },
   categoryActive: {
     backgroundColor: COLORS.neutral.white,
@@ -776,24 +917,21 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   categoryIconContainer: {
-    marginBottom: 6,
+    marginBottom: 4,
   },
   categoryImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    // sizes set dynamically
   },
   categoryEmoji: {
-    fontSize: 36,
+    // sizes set dynamically
   },
   categoryText: {
-    fontSize: 11,
     fontWeight: "600",
     color: COLORS.text.primary,
     textAlign: "center",
   },
   categoryTextActive: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
     color: COLORS.primary.green,
   },
@@ -805,7 +943,6 @@ const styles = StyleSheet.create({
   wordsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start",
     paddingBottom: 20,
   },
   emptyState: {
@@ -821,25 +958,15 @@ const styles = StyleSheet.create({
 
   // بطاقات الكلمات
   wordCard: {
-    width: 125,
-    height: 140,
-    margin: 7,
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
     overflow: "hidden",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: COLORS.neutral.cream,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 5,
-  },
-  wordCardPortrait: {
-    width: "45%",
-    maxWidth: 160,
-    height: 160,
-    margin: 5,
   },
   wordCardPressed: {
     borderColor: COLORS.primary.green,
@@ -862,22 +989,18 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.cream,
   },
   placeholderText: {
-    fontSize: 14,
     color: COLORS.text.light,
     fontWeight: "600",
   },
   wordLabel: {
     backgroundColor: COLORS.neutral.white,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 30,
     borderTopWidth: 2,
     borderTopColor: COLORS.neutral.cream,
   },
   wordText: {
-    fontSize: 13,
     fontWeight: "700",
     color: COLORS.text.primary,
     textAlign: "center",

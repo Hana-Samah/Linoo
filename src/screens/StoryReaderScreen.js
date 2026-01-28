@@ -4,8 +4,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Dimensions,
   Platform,
+  SafeAreaView,
+  StatusBar,
+  useWindowDimensions,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -13,37 +15,29 @@ import { Audio, Video } from "expo-av";
 import * as Speech from "expo-speech";
 import { incrementReadCount } from "../data/stories";
 import { addPoints, checkAchievements, updateWeeklyGoals } from "../storage/rewardsTracking";
-import { addDailyProgress, PROGRESS_REASONS } from "../storage/dailyLionProgress";
+import { addDailyProgress } from "../storage/dailyLionProgress";
 import { COLORS } from "../styles/colors";
 
 export default function StoryReaderScreen({ navigation, route }) {
   const { story } = route.params;
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+  const isSmallScreen = width < 375;
+
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isReading, setIsReading] = useState(false);
   const [storyCompleted, setStoryCompleted] = useState(false);
-  const [screenDimensions, setScreenDimensions] = useState(
-    Dimensions.get("window")
-  );
 
   const currentScene = story.scenes[currentSceneIndex];
   const isFirstScene = currentSceneIndex === 0;
   const isLastScene = currentSceneIndex === story.scenes.length - 1;
-  const isPortrait = screenDimensions.height > screenDimensions.width;
 
   const soundRef = useRef(null);
   const videoRef = useRef(null);
 
   useEffect(() => {
-    const subscription = Dimensions.addEventListener("change", ({ window }) => {
-      setScreenDimensions(window);
-    });
-    return () => subscription?.remove();
-  }, []);
-
-  useEffect(() => {
     ScreenOrientation.unlockAsync();
-
     incrementReadCount(story.id);
 
     return () => {
@@ -187,155 +181,342 @@ export default function StoryReaderScreen({ navigation, route }) {
     });
   };
 
+  // 🎯 حساب الأبعاد بناءً على الاتجاه
+  const containerPadding = isPortrait ? 15 : 20;
+  const headerHeight = isPortrait ? 60 : 50;
+  // ✅ تصليح: استخدام undefined بدلاً من نسبة مئوية للعمودي
+  const imageHeight = isPortrait 
+    ? undefined  // سيأخذ المساحة المتاحة تلقائياً
+    : undefined;
+  const textMinHeight = isPortrait ? 70 : 60;
+  const buttonSize = isPortrait ? 60 : 55;
+  const buttonSizeLarge = isPortrait ? 75 : 70;
+
   return (
-    <View style={styles.container}>
-      {/* 🎨 خلفية ترابية */}
-      <View style={styles.backgroundPattern}>
-        <View style={[styles.floatingShape, styles.shape1]} />
-        <View style={[styles.floatingShape, styles.shape2]} />
-        <View style={[styles.floatingShape, styles.shape3]} />
-        <View style={[styles.floatingShape, styles.shape4]} />
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      
+      <View style={styles.container}>
+        {/* 🎨 خلفية ترابية */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.floatingShape, styles.shape1]} />
+          <View style={[styles.floatingShape, styles.shape2]} />
+          <View style={[styles.floatingShape, styles.shape3]} />
+          <View style={[styles.floatingShape, styles.shape4]} />
+        </View>
 
-      {/* الهيدر */}
-      <View style={[styles.header, isPortrait && styles.headerPortrait]}>
-        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-          <Text style={styles.closeIcon}>✕</Text>
-        </TouchableOpacity>
+        {/* 📌 الهيدر */}
+        <View style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          backgroundColor: "transparent",
+          paddingVertical: isPortrait ? 10 : 8,
+          paddingHorizontal: containerPadding,
+          paddingTop: Platform.OS === "ios" ? 5 : 10,
+          height: headerHeight,
+          zIndex: 100,
+        }}>
+          <TouchableOpacity
+            onPress={handleClose}
+            style={{
+              width: isPortrait ? 45 : 42,
+              height: isPortrait ? 45 : 42,
+              borderRadius: isPortrait ? 22.5 : 21,
+              backgroundColor: COLORS.primary.teal,
+              justifyContent: "center",
+              alignItems: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.15,
+              shadowRadius: 5,
+              elevation: 5,
+              borderWidth: 3,
+              borderColor: COLORS.neutral.white,
+            }}
+          >
+            <Text style={{
+              fontSize: isPortrait ? 22 : 20,
+              fontWeight: "bold",
+              color: COLORS.neutral.white,
+            }}>✕</Text>
+          </TouchableOpacity>
 
-        <Text style={[styles.storyTitle, isPortrait && styles.storyTitlePortrait]} numberOfLines={1}>
-          {story.title}
-        </Text>
-
-        <View style={styles.pageCounter}>
-          <Text style={styles.pageText}>
-            {currentSceneIndex + 1}/{story.scenes.length}
+          <Text style={{
+            flex: 1,
+            fontSize: isPortrait ? (isSmallScreen ? 15 : 16) : 15,
+            fontWeight: "800",
+            color: COLORS.secondary.orange,
+            textAlign: "center",
+            marginHorizontal: 10,
+          }} numberOfLines={1}>
+            {story.title}
           </Text>
-        </View>
-      </View>
 
-      {/* المحتوى الرئيسي */}
-      <View style={[styles.mainContent, isPortrait && styles.mainContentPortrait]}>
-        {/* الصورة أو الفيديو */}
-        <View style={[styles.mediaContainer, isPortrait && styles.mediaContainerPortrait]}>
-          {currentScene.video ? (
-            <Video
-              ref={videoRef}
-              source={currentScene.video}
-              style={styles.media}
-              resizeMode="contain"
-              shouldPlay={isPlaying}
-              isLooping={false}
-              useNativeControls={false}
-              onPlaybackStatusUpdate={(status) => {
-                if (status.didJustFinish) {
-                  console.log("Video finished");
-                }
-              }}
-            />
-          ) : (
-            <Image
-              source={currentScene.image}
-              style={styles.media}
-              resizeMode="contain"
-            />
-          )}
-        </View>
-
-        {/* النص ومؤشر التقدم */}
-        <View style={[styles.textSection, isPortrait && styles.textSectionPortrait]}>
-          {/* مؤشر التقدم */}
-          <View style={styles.progressContainer}>
-            {story.scenes.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.progressDot,
-                  index === currentSceneIndex && styles.dotActive,
-                  index < currentSceneIndex && styles.dotCompleted,
-                ]}
-              />
-            ))}
-          </View>
-
-          {/* النص */}
-          <View style={styles.textContainer}>
-            <Text style={[styles.sceneText, isReading && styles.textReading]}>
-              {currentScene.text}
+          <View style={{
+            backgroundColor: COLORS.neutral.white,
+            paddingHorizontal: isPortrait ? 12 : 10,
+            paddingVertical: isPortrait ? 6 : 5,
+            borderRadius: 16,
+            borderWidth: 2,
+            borderColor: COLORS.primary.sage,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.12,
+            shadowRadius: 3,
+            elevation: 3,
+          }}>
+            <Text style={{
+              fontSize: isPortrait ? 13 : 12,
+              fontWeight: "700",
+              color: COLORS.text.primary,
+            }}>
+              {currentSceneIndex + 1}/{story.scenes.length}
             </Text>
           </View>
+        </View>
 
-          {/* أزرار التحكم */}
-          <View style={styles.controlsContainer}>
-            {!isLastScene ? (
-              <>
-                {/* السابق */}
-                <TouchableOpacity
-                  style={[
-                    styles.navButton,
-                    isFirstScene && styles.navButtonDisabled,
-                  ]}
-                  onPress={goToPreviousScene}
-                  disabled={isFirstScene}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.navIcon}>◀</Text>
-                </TouchableOpacity>
-
-                {/* تشغيل/إيقاف */}
-                <TouchableOpacity
-                  style={styles.mainButton}
-                  onPress={togglePlayPause}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.mainIcon}>{isPlaying ? "⏸" : "▶"}</Text>
-                </TouchableOpacity>
-
-                {/* التالي */}
-                <TouchableOpacity
-                  style={[
-                    styles.navButton,
-                    isLastScene && styles.navButtonDisabled,
-                  ]}
-                  onPress={goToNextScene}
-                  disabled={isLastScene}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.navIcon}>▶</Text>
-                </TouchableOpacity>
-              </>
+        {/* 📱 المحتوى الرئيسي */}
+        <View style={{
+          flex: 1,
+          flexDirection: isPortrait ? "column" : "row",
+          paddingHorizontal: containerPadding,
+          paddingBottom: isPortrait ? 10 : 8,
+          gap: isPortrait ? 10 : 16,
+        }}>
+          {/* 🖼️ الصورة أو الفيديو */}
+          <View style={{
+            flex: isPortrait ? 1.5 : 1.2,
+            backgroundColor: COLORS.neutral.white,
+            borderRadius: isPortrait ? 18 : 20,
+            overflow: "hidden",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            elevation: 8,
+            borderWidth: 3,
+            borderColor: COLORS.primary.sage,
+          }}>
+            {currentScene.video ? (
+              <Video
+                ref={videoRef}
+                source={currentScene.video}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="contain"
+                shouldPlay={isPlaying}
+                isLooping={false}
+                useNativeControls={false}
+                onPlaybackStatusUpdate={(status) => {
+                  if (status.didJustFinish) {
+                    console.log("Video finished");
+                  }
+                }}
+              />
             ) : (
-              /* في آخر مشهد - زر الرجوع + زر الكويز */
-              <>
+              <Image
+                source={currentScene.image}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+
+          {/* 📝 قسم النص والأزرار */}
+          <View style={{
+            flex: isPortrait ? 1 : 1,
+            justifyContent: "space-between",
+          }}>
+            {/* 🔵 مؤشر التقدم */}
+            <View style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+              paddingVertical: isPortrait ? 8 : 6,
+            }}>
+              {story.scenes.map((_, index) => (
+                <View
+                  key={index}
+                  style={{
+                    width: index === currentSceneIndex ? 12 : 8,
+                    height: index === currentSceneIndex ? 12 : 8,
+                    borderRadius: index === currentSceneIndex ? 6 : 4,
+                    backgroundColor: index < currentSceneIndex
+                      ? COLORS.primary.green
+                      : index === currentSceneIndex
+                      ? COLORS.secondary.orange
+                      : "#E0E0E0",
+                    marginHorizontal: 3,
+                    borderWidth: index === currentSceneIndex ? 2 : 0,
+                    borderColor: COLORS.neutral.white,
+                    shadowColor: index === currentSceneIndex ? COLORS.secondary.orange : "transparent",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.4,
+                    shadowRadius: 3,
+                    elevation: index === currentSceneIndex ? 3 : 0,
+                  }}
+                />
+              ))}
+            </View>
+
+            {/* 📖 النص */}
+            <View style={{
+              backgroundColor: COLORS.neutral.white,
+              paddingVertical: isPortrait ? (isSmallScreen ? 12 : 14) : 12,
+              paddingHorizontal: isPortrait ? 14 : 12,
+              borderRadius: 18,
+              minHeight: textMinHeight,
+              justifyContent: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.12,
+              shadowRadius: 6,
+              elevation: 5,
+              borderWidth: 3,
+              borderColor: COLORS.primary.sage,
+            }}>
+              <Text style={{
+                fontSize: isPortrait ? (isSmallScreen ? 15 : 16) : 15,
+                textAlign: "center",
+                color: isReading ? COLORS.primary.green : COLORS.text.primary,
+                fontWeight: "700",
+                lineHeight: isPortrait ? 24 : 22,
+              }}>
+                {currentScene.text}
+              </Text>
+            </View>
+
+            {/* 🎮 أزرار التحكم */}
+            <View style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+              paddingVertical: isPortrait ? 10 : 8,
+              gap: 10,
+            }}>
+              {/* ⏮️ زر السابق */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: isFirstScene ? "#D0D0D0" : COLORS.primary.green,
+                  width: buttonSize,
+                  height: buttonSize,
+                  borderRadius: 14,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: isFirstScene ? 0.1 : 0.2,
+                  shadowRadius: 6,
+                  elevation: isFirstScene ? 3 : 6,
+                  borderWidth: 3,
+                  borderColor: COLORS.neutral.white,
+                  opacity: isFirstScene ? 0.5 : 1,
+                }}
+                onPress={goToPreviousScene}
+                disabled={isFirstScene}
+                activeOpacity={0.8}
+              >
+                {/* ⚠️ تصحيح اتجاه السهم للجوال */}
+                <Text style={{
+                  fontSize: 26,
+                  color: COLORS.neutral.white,
+                }}>◀</Text>
+              </TouchableOpacity>
+
+              {/* ⏯️ زر التشغيل/الإيقاف */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: COLORS.secondary.orange,
+                  width: buttonSizeLarge,
+                  height: buttonSizeLarge,
+                  borderRadius: 18,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 5 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 10,
+                  elevation: 10,
+                  borderWidth: 4,
+                  borderColor: COLORS.neutral.white,
+                }}
+                onPress={togglePlayPause}
+                activeOpacity={0.8}
+              >
+                <Text style={{
+                  fontSize: 36,
+                  color: COLORS.neutral.white,
+                }}>{isPlaying ? "⏸" : "▶"}</Text>
+              </TouchableOpacity>
+
+              {/* ⏭️ زر التالي أو الكويز */}
+              {!isLastScene ? (
                 <TouchableOpacity
-                  style={styles.navButton}
-                  onPress={goToPreviousScene}
+                  style={{
+                    backgroundColor: COLORS.primary.green,
+                    width: buttonSize,
+                    height: buttonSize,
+                    borderRadius: 14,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 6,
+                    elevation: 6,
+                    borderWidth: 3,
+                    borderColor: COLORS.neutral.white,
+                  }}
+                  onPress={goToNextScene}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.navIcon}>◀</Text>
+                  {/* ⚠️ تصحيح اتجاه السهم للجوال */}
+                  <Text style={{
+                    fontSize: 26,
+                    color: COLORS.neutral.white,
+                  }}>▶</Text>
                 </TouchableOpacity>
-
+              ) : (
                 <TouchableOpacity
-                  style={styles.quizButton}
+                  style={{
+                    backgroundColor: COLORS.neutral.white,
+                    width: buttonSize,
+                    height: buttonSize,
+                    borderRadius: 14,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 5 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 10,
+                    elevation: 10,
+                    borderWidth: 4,
+                    borderColor: COLORS.secondary.yellow,
+                    overflow: "hidden",
+                  }}
                   onPress={handleQuiz}
                   activeOpacity={0.8}
                 >
                   <Image 
-                    source={require("../../assets/quiz-icon.png")}
-                    style={styles.quizImage}
+                    source={require("../../assets/quiz-icon.webp")}
+                    style={{ width: "100%", height: "100%" }}
                     resizeMode="contain"
                   />
                 </TouchableOpacity>
-              </>
-            )}
+              )}
+            </View>
           </View>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -379,247 +560,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary.peach,
     bottom: "25%",
     right: -20,
-  },
-
-  /* ====== الهيدر ====== */
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "transparent",
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 20,
-    zIndex: 100,
-  },
-  headerPortrait: {
-    paddingTop: Platform.OS === "ios" ? 50 : 20,
-    paddingHorizontal: 15,
-  },
-  closeButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.primary.teal,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
-    borderWidth: 4,
-    borderColor: COLORS.neutral.white,
-  },
-  closeIcon: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: COLORS.neutral.white,
-  },
-  storyTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: "800",
-    color: COLORS.secondary.orange,
-    textAlign: "center",
-    marginHorizontal: 10,
-  },
-  storyTitlePortrait: {
-    fontSize: 18,
-  },
-  pageCounter: {
-    backgroundColor: COLORS.neutral.white,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: COLORS.primary.sage,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  pageText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.text.primary,
-  },
-
-  /* ====== المحتوى الرئيسي ====== */
-  mainContent: {
-    flex: 1,
-    flexDirection: "row",
-    padding: 20,
-    gap: 20,
-  },
-  mainContentPortrait: {
-    flexDirection: "column",
-    padding: 15,
-    gap: 15,
-  },
-
-  /* ====== الصورة/الفيديو ====== */
-  mediaContainer: {
-    flex: 1,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 30,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-    borderWidth: 4,
-    borderColor: COLORS.primary.sage,
-  },
-  mediaContainerPortrait: {
-    flex: 2,
-    borderRadius: 25,
-    borderWidth: 3,
-  },
-  media: {
-    width: "100%",
-    height: "100%",
-  },
-
-  /* ====== قسم النص ====== */
-  textSection: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  textSectionPortrait: {
-    flex: 1,
-  },
-
-  /* ====== مؤشر التقدم ====== */
-  progressContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 15,
-  },
-  progressDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#E0E0E0",
-    marginHorizontal: 5,
-  },
-  dotActive: {
-    backgroundColor: COLORS.secondary.orange,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 3,
-    borderColor: COLORS.neutral.white,
-    shadowColor: COLORS.secondary.orange,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  dotCompleted: {
-    backgroundColor: COLORS.primary.green,
-  },
-
-  /* ====== النص ====== */
-  textContainer: {
-    backgroundColor: COLORS.neutral.white,
-    paddingVertical: 25,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    minHeight: 120,
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 4,
-    borderColor: COLORS.primary.sage,
-  },
-  sceneText: {
-    fontSize: 22,
-    textAlign: "center",
-    color: COLORS.text.primary,
-    fontWeight: "700",
-    lineHeight: 34,
-  },
-  textReading: {
-    color: COLORS.primary.green,
-  },
-
-  /* ====== أزرار التحكم ====== */
-  controlsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 15,
-    gap: 15,
-  },
-  navButton: {
-    backgroundColor: COLORS.primary.green,
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
-    borderWidth: 4,
-    borderColor: COLORS.neutral.white,
-  },
-  navButtonDisabled: {
-    backgroundColor: "#D0D0D0",
-    opacity: 0.5,
-  },
-  navIcon: {
-    fontSize: 36,
-    color: COLORS.neutral.white,
-  },
-  mainButton: {
-    backgroundColor: COLORS.secondary.orange,
-    width: 100,
-    height: 100,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 15,
-    borderWidth: 5,
-    borderColor: COLORS.neutral.white,
-  },
-  mainIcon: {
-    fontSize: 48,
-    color: COLORS.neutral.white,
-  },
-
-  /* ====== زر الكويز ====== */
-  quizButton: {
-    backgroundColor: COLORS.neutral.white,
-    width: 100,
-    height: 100,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 15,
-    borderWidth: 5,
-    borderColor: COLORS.secondary.yellow,
-    overflow: "hidden",
-  },
-  quizImage: {
-    width: "100%",
-    height: "100%",
   },
 });

@@ -7,18 +7,43 @@ import {
   Alert,
   Image,
   ScrollView,
+  Dimensions,
+  Platform,
 } from "react-native";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { getChildInfo, saveChildInfo } from "../storage/childStorage";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { COLORS } from "../styles/colors";
+
+const icons = {
+  back: require("../../assets/backspace-icon.webp"),
+  profile: require("../../assets/profile-icon.webp"),
+  gallery: require("../../assets/gallery-icon.webp"),
+  camera: require("../../assets/camera-icon.webp"),
+  save: require("../../assets/save-icon.webp"),
+  delete: require("../../assets/clear-icon.webp"),
+  girl: require("../../assets/girl.webp"),
+  boy: require("../../assets/boy.webp"),
+};
 
 export default function ChildProfileScreen({ navigation }) {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [imageUri, setImageUri] = useState(null);
+  const [screenDimensions, setScreenDimensions] = useState(
+    Dimensions.get("window")
+  );
+  const isPortrait = screenDimensions.height > screenDimensions.width;
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", ({ window }) => {
+      setScreenDimensions(window);
+    });
+    return () => subscription?.remove();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -147,21 +172,32 @@ export default function ChildProfileScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {/* 🎨 خلفية ترابية */}
+      <View style={styles.backgroundPattern}>
+        <View style={[styles.floatingShape, styles.shape1]} />
+        <View style={[styles.floatingShape, styles.shape2]} />
+        <View style={[styles.floatingShape, styles.shape3]} />
+        <View style={[styles.floatingShape, styles.shape4]} />
+      </View>
+
       {/* الهيدر */}
-      <View style={styles.header}>
+      <View style={[styles.header, isPortrait && styles.headerPortrait]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>بروفايل الطفل</Text>
-        <View style={styles.headerIconContainer}>
-          <Text style={styles.headerIcon}>👤</Text>
+
+        <View style={styles.headerContent}>
+          <Image source={icons.profile} style={styles.headerIcon} resizeMode="contain" />
+          <Text style={[styles.headerTitle, isPortrait && styles.headerTitlePortrait]}>بروفايل الطفل</Text>
         </View>
+
+        <View style={styles.spacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, isPortrait && styles.contentPortrait]}>
         {/* صورة الطفل */}
         <View style={styles.imageSection}>
           <View style={styles.imageContainer}>
@@ -177,12 +213,12 @@ export default function ChildProfileScreen({ navigation }) {
           {/* أزرار تغيير الصورة */}
           <View style={styles.imageButtons}>
             <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-              <Text style={styles.imageButtonIcon}>🖼️</Text>
+              <Image source={icons.gallery} style={styles.imageButtonIcon} resizeMode="contain" />
               <Text style={styles.imageButtonText}>المعرض</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
-              <Text style={styles.imageButtonIcon}>📷</Text>
+              <Image source={icons.camera} style={styles.imageButtonIcon} resizeMode="contain" />
               <Text style={styles.imageButtonText}>كاميرا</Text>
             </TouchableOpacity>
           </View>
@@ -198,7 +234,7 @@ export default function ChildProfileScreen({ navigation }) {
               placeholder="اسم الطفل"
               value={name}
               onChangeText={setName}
-              placeholderTextColor="#9A9A9A"
+              placeholderTextColor={COLORS.text.light}
             />
           </View>
 
@@ -211,7 +247,7 @@ export default function ChildProfileScreen({ navigation }) {
               keyboardType="number-pad"
               value={age}
               onChangeText={setAge}
-              placeholderTextColor="#9A9A9A"
+              placeholderTextColor={COLORS.text.light}
             />
           </View>
 
@@ -226,7 +262,7 @@ export default function ChildProfileScreen({ navigation }) {
                 ]}
                 onPress={() => setGender("male")}
               >
-                <Text style={styles.genderIcon}>👦</Text>
+                <Image source={icons.boy} style={styles.genderIcon} resizeMode="contain" />
                 <Text
                   style={[
                     styles.genderText,
@@ -244,7 +280,7 @@ export default function ChildProfileScreen({ navigation }) {
                 ]}
                 onPress={() => setGender("female")}
               >
-                <Text style={styles.genderIcon}>👧</Text>
+                <Image source ={icons.girl} style={styles.genderIcon} resizeMode="contain" />
                 <Text
                   style={[
                     styles.genderText,
@@ -260,12 +296,14 @@ export default function ChildProfileScreen({ navigation }) {
 
         {/* زر الحفظ */}
         <TouchableOpacity style={styles.saveButton} onPress={save}>
-          <Text style={styles.saveText}>💾 حفظ التعديلات</Text>
+          <Image source={icons.save} style={styles.saveIcon} resizeMode="contain" />
+          <Text style={styles.saveText}>حفظ التعديلات</Text>
         </TouchableOpacity>
 
         {/* زر الحذف */}
         <TouchableOpacity style={styles.deleteButton} onPress={deleteProfile}>
-          <Text style={styles.deleteText}>🗑️ حذف البروفايل نهائياً</Text>
+          <Image source={icons.delete} style={styles.deleteIcon} resizeMode="contain" />
+          <Text style={styles.deleteText}>حذف البروفايل نهائياً</Text>
         </TouchableOpacity>
 
         {/* مسافة إضافية */}
@@ -278,57 +316,111 @@ export default function ChildProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FAF8F5",
+    backgroundColor: COLORS.background,
+  },
+
+  /* 🎨 خلفية ترابية */
+  backgroundPattern: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  floatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
+  },
+  shape1: {
+    width: 200,
+    height: 200,
+    backgroundColor: COLORS.primary.green,
+    top: -50,
+    right: -60,
+  },
+  shape2: {
+    width: 150,
+    height: 150,
+    backgroundColor: COLORS.secondary.orange,
+    bottom: -40,
+    left: -50,
+  },
+  shape3: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.primary.teal,
+    top: "30%",
+    left: -30,
+  },
+  shape4: {
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.secondary.peach,
+    bottom: "25%",
+    right: -20,
   },
 
   /* ====== الهيدر ====== */
   header: {
-    backgroundColor: "#D9956C",
-    paddingTop: 50,
+    backgroundColor: "transparent",
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    zIndex: 100,
+  },
+  headerPortrait: {
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
+    paddingHorizontal: 15,
+  },
+  backButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
-    elevation: 8,
-  },
-  backButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    justifyContent: "center",
-    alignItems: "center",
+    elevation: 6,
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
   },
   backIcon: {
-    fontSize: 28,
-    color: "#FFFFFF",
-    fontWeight: "bold",
+    width: 57,
+    height: 57,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  headerIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    justifyContent: "center",
+  headerContent: {
+    flex: 1,
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
   },
   headerIcon: {
+    width: 32,
+    height: 32,
+    tintColor: COLORS.secondary.orange,
+  },
+  headerTitle: {
     fontSize: 28,
+    fontWeight: "900",
+    color: COLORS.secondary.orange,
+  },
+  headerTitlePortrait: {
+    fontSize: 24,
+  },
+  spacer: {
+    width: 60,
   },
 
   /* ====== المحتوى ====== */
   content: {
     padding: 20,
+  },
+  contentPortrait: {
+    padding: 15,
   },
 
   /* ====== قسم الصورة ====== */
@@ -340,32 +432,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   profileImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     borderWidth: 6,
-    borderColor: "#FFFFFF",
+    borderColor: COLORS.neutral.white,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 10,
+    elevation: 10,
   },
   placeholderImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "#E0E0E0",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
-    borderStyle: "dashed",
+    borderWidth: 5,
+    borderColor: COLORS.neutral.white,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowRadius: 8,
+    elevation: 8,
   },
   placeholderIcon: {
     fontSize: 60,
@@ -377,25 +467,29 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   imageButton: {
-    backgroundColor: "#E8C68E",
-    paddingVertical: 12,
+    backgroundColor: COLORS.secondary.yellow,
+    paddingVertical: 14,
     paddingHorizontal: 25,
-    borderRadius: 18,
+    borderRadius: 20,
     alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: COLORS.neutral.white,
   },
   imageButtonIcon: {
-    fontSize: 26,
-    marginBottom: 4,
+    width: 24,
+    height: 24,
   },
   imageButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#4A4A4A",
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.neutral.white,
   },
 
   /* ====== قسم الحقول ====== */
@@ -407,25 +501,25 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#4A6B6F",
+    fontWeight: "800",
+    color: COLORS.primary.darkTeal,
     marginBottom: 10,
   },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.neutral.white,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 18,
+    borderRadius: 20,
     fontSize: 17,
-    fontWeight: "500",
-    color: "#4A4A4A",
-    borderWidth: 3,
-    borderColor: "#E0E0E0",
+    fontWeight: "600",
+    color: COLORS.text.primary,
+    borderWidth: 4,
+    borderColor: COLORS.primary.sage,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
 
   /* ====== أزرار الجنس ====== */
@@ -435,70 +529,88 @@ const styles = StyleSheet.create({
   },
   genderButton: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.neutral.white,
     paddingVertical: 20,
-    borderRadius: 18,
+    borderRadius: 20,
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#E0E0E0",
+    borderWidth: 4,
+    borderColor: COLORS.neutral.cream,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   genderButtonActive: {
-    backgroundColor: "#D9956C",
-    borderColor: "#B87B5B",
+    backgroundColor: COLORS.primary.teal,
+    borderColor: COLORS.primary.darkTeal,
   },
   genderIcon: {
     fontSize: 42,
     marginBottom: 8,
+    width: 128,
+    height: 128,
   },
   genderText: {
     fontSize: 17,
-    fontWeight: "700",
-    color: "#7A7A7A",
+    fontWeight: "800",
+    color: COLORS.text.secondary,
   },
   genderTextActive: {
-    color: "#FFFFFF",
+    color: COLORS.neutral.white,
   },
 
   /* ====== أزرار الحفظ والحذف ====== */
   saveButton: {
-    backgroundColor: "#7FA896",
+    backgroundColor: COLORS.primary.green,
     paddingVertical: 18,
     borderRadius: 20,
     alignItems: "center",
-    shadowColor: "#7FA896",
-    shadowOffset: { width: 0, height: 5 },
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    shadowColor: COLORS.primary.green,
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
     marginBottom: 15,
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
+  },
+  saveIcon: {
+    width: 28,
+    height: 28,
   },
   saveText: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
+    fontWeight: "900",
+    color: COLORS.neutral.white,
   },
   deleteButton: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.neutral.white,
     paddingVertical: 16,
     borderRadius: 20,
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "#FF6B6B",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    borderWidth: 4,
+    borderColor: COLORS.secondary.rust,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
+    shadowRadius: 6,
     elevation: 5,
+  },
+  deleteIcon: {
+    width: 24,
+    height: 24,
   },
   deleteText: {
     fontSize: 17,
-    fontWeight: "700",
-    color: "#FF6B6B",
+    fontWeight: "800",
+    color: COLORS.secondary.rust,
   },
 
   /* ====== مسافة إضافية ====== */

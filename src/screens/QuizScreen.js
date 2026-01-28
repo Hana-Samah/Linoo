@@ -7,31 +7,32 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
-  Dimensions,
   Platform,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { useState, useRef, useEffect } from "react";
 import { getChildInfo } from "../storage/childStorage";
 import { addStar, saveQuizResult, getQuizResults } from "../data/stories";
-import {
-  addPoints,
-  checkAchievements,
-  updateWeeklyGoals,
-} from "../storage/rewardsTracking";
+import { addPoints, checkAchievements, updateWeeklyGoals } from "../storage/rewardsTracking";
 import { addDailyProgress } from "../storage/dailyLionProgress";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
 import { COLORS } from "../styles/colors";
 
 const icons = {
-  speaker: require("../../assets/speaker-icon.png"),
-  correct: require("../../assets/correct-icon.png"),
-  wrong: require("../../assets/wrong-icon.png"),
-  star: require("../../assets/lion/lion_8.png"),
+  speaker: require("../../assets/speaker-icon.webp"),
+  correct: require("../../assets/correct-icon.webp"),
+  wrong: require("../../assets/wrong-icon.webp"),
+  star: require("../../assets/lion/lion_8.webp"),
 };
 
 export default function QuizScreen({ navigation, route }) {
   const { quiz, storyId, storyTitle } = route.params;
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+  const isSmallScreen = width < 375;
+
   const [childName, setChildName] = useState("");
   const [selectedOption, setSelectedOption] = useState(null);
   const [showResult, setShowResult] = useState(false);
@@ -40,29 +41,18 @@ export default function QuizScreen({ navigation, route }) {
   const [attempts, setAttempts] = useState(0);
   const [frozenOptions, setFrozenOptions] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [screenDimensions, setScreenDimensions] = useState(
-    Dimensions.get("window"),
-  );
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const starAnim = useRef(new Animated.Value(0)).current;
   const pointsAnim = useRef(new Animated.Value(0)).current;
-
+  
   const soundRef = useRef(null);
-  const isPortrait = screenDimensions.height > screenDimensions.width;
-
-  useEffect(() => {
-    const subscription = Dimensions.addEventListener("change", ({ window }) => {
-      setScreenDimensions(window);
-    });
-    return () => subscription?.remove();
-  }, []);
 
   useEffect(() => {
     loadChildName();
     shuffleOptions();
     speakQuestion();
-
+    
     return () => {
       if (soundRef.current) {
         soundRef.current.unloadAsync();
@@ -81,7 +71,7 @@ export default function QuizScreen({ navigation, route }) {
   const shuffleOptions = () => {
     const shuffled = [...quiz.options].sort(() => Math.random() - 0.5);
     setShuffledOptions(shuffled);
-
+    
     if (!frozenOptions) {
       setFrozenOptions(shuffled);
     }
@@ -101,9 +91,10 @@ export default function QuizScreen({ navigation, route }) {
           playsInSilentModeIOS: true,
         });
 
-        const { sound } = await Audio.Sound.createAsync(quiz.questionAudio, {
-          shouldPlay: true,
-        });
+        const { sound } = await Audio.Sound.createAsync(
+          quiz.questionAudio,
+          { shouldPlay: true }
+        );
 
         soundRef.current = sound;
 
@@ -157,9 +148,10 @@ export default function QuizScreen({ navigation, route }) {
           playsInSilentModeIOS: true,
         });
 
-        const { sound } = await Audio.Sound.createAsync(option.audio, {
-          shouldPlay: true,
-        });
+        const { sound } = await Audio.Sound.createAsync(
+          option.audio,
+          { shouldPlay: true }
+        );
 
         soundRef.current = sound;
 
@@ -220,7 +212,7 @@ export default function QuizScreen({ navigation, route }) {
 
         const { sound } = await Audio.Sound.createAsync(
           ENCOURAGEMENT_SOUNDS[soundKey],
-          { shouldPlay: true },
+          { shouldPlay: true }
         );
 
         soundRef.current = sound;
@@ -243,11 +235,11 @@ export default function QuizScreen({ navigation, route }) {
 
   const handleOptionPress = async (option) => {
     if (isProcessing || showResult) return;
-
+    
     setIsProcessing(true);
-
+    
     await speakOption(option);
-
+    
     setSelectedOption(option.id);
 
     Animated.sequence([
@@ -263,34 +255,31 @@ export default function QuizScreen({ navigation, route }) {
       }),
     ]).start();
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     if (option.isCorrect) {
       console.log("✅ إجابة صحيحة!");
-
+      
       setIsCorrect(true);
       setShowResult(true);
 
       const quizResults = await saveQuizResult(storyId, true);
       await addStar();
-
+      
       const pointsToAdd = attempts === 0 ? 15 : 10;
       await addPoints(pointsToAdd, `إجابة صحيحة في سؤال "${storyTitle}"`);
       await updateWeeklyGoals("quiz");
-
-      const progressResult = await addDailyProgress(
-        "QUIZ_CORRECT",
-        "إجابة صحيحة",
-      );
+      
+      const progressResult = await addDailyProgress("QUIZ_CORRECT", "إجابة صحيحة");
       if (progressResult && progressResult.hairGrown) {
         console.log(`🦁 ${progressResult.message}`);
       }
-
+      
       let totalCorrectAnswers = 0;
-      Object.values(quizResults).forEach((storyResults) => {
-        totalCorrectAnswers += storyResults.filter((r) => r.isCorrect).length;
+      Object.values(quizResults).forEach(storyResults => {
+        totalCorrectAnswers += storyResults.filter(r => r.isCorrect).length;
       });
-
+      
       await checkAchievements("quiz", totalCorrectAnswers);
 
       Animated.parallel([
@@ -311,47 +300,57 @@ export default function QuizScreen({ navigation, route }) {
         ]),
       ]).start();
 
-      await speakEncouragement("correct");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
+      await speakEncouragement('correct');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       console.log("📙 الرجوع لقائمة القصص");
       navigation.navigate("Learning");
+      
     } else {
       console.log(`❌ إجابة خاطئة - المحاولة ${attempts + 1}`);
-
+      
       setIsCorrect(false);
       setShowResult(true);
-
+      
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
 
-      await speakEncouragement("try_again");
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await speakEncouragement('try_again');
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      setShowResult(false);
-      setSelectedOption(null);
-      setIsProcessing(false);
-
-      const wrongIndex = shuffledOptions.findIndex(
-        (opt) => opt.id === option.id,
-      );
-      const newOptions = shuffledOptions.filter((opt) => opt.id !== option.id);
-      setShuffledOptions(newOptions);
-
-      if (newOptions.length === 1) {
-        console.log("💡 بقي خيار واحد فقط");
+      if (newAttempts === 1) {
+        console.log("🔄 المحاولة الثانية: نفس الترتيب");
+        setShuffledOptions(frozenOptions);
+      } else if (newAttempts >= 2) {
+        console.log("✅ المحاولة الثالثة: الإجابة الصحيحة فقط");
+        const correctAnswer = quiz.options.find(opt => opt.isCorrect);
+        setShuffledOptions([correctAnswer]);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
-
-      return;
+      
+      setSelectedOption(null);
+      setShowResult(false);
+      setIsProcessing(false);
+      
+      await speakQuestion();
     }
-
+    
     setIsProcessing(false);
+  };
+
+  // حساب ارتفاع الصورة بناءً على الوضع
+  const getImageHeight = () => {
+    if (shuffledOptions.length === 1) {
+      return isPortrait ? 200 : 180;
+    }
+    return isPortrait ? 140 : 100;
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-
+      
       <View style={styles.container}>
         {/* 🎨 خلفية ترابية */}
         <View style={styles.backgroundPattern}>
@@ -361,152 +360,321 @@ export default function QuizScreen({ navigation, route }) {
           <View style={[styles.floatingShape, styles.shape4]} />
         </View>
 
-        {/* الهيدر */}
-        <View style={[styles.header, isPortrait && styles.headerPortrait]}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>🎯 الاختبار</Text>
-          </View>
-
-          {attempts > 0 && (
-            <View style={styles.attemptsIndicator}>
-              <Text style={styles.attemptsText}>محاولة {attempts}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* السؤال */}
-        <View style={styles.questionSection}>
-          <View style={styles.questionBubble}>
-            <Text style={styles.questionText}>{quiz.question}</Text>
-
-            <TouchableOpacity
-              style={styles.speakerButton}
-              onPress={speakQuestion}
-              activeOpacity={0.8}
-            >
-              <Image
-                source={icons.speaker}
-                style={styles.speakerIcon}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* الخيارات */}
-        <View
-          style={[styles.optionsRow, isPortrait && styles.optionsRowPortrait]}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: isPortrait ? 16 : 20,
+            paddingTop: Platform.OS === "ios" ? 10 : 15,
+            paddingBottom: 20,
+          }}
         >
-          {shuffledOptions.map((option, index) => (
-            <Animated.View
-              key={option.id}
-              style={[
-                styles.optionWrapper,
-                shuffledOptions.length === 1 && styles.optionWrapperSingle,
-                isPortrait && styles.optionWrapperPortrait,
-                {
-                  transform: [
-                    { scale: selectedOption === option.id ? scaleAnim : 1 },
-                  ],
-                },
-              ]}
-            >
-              <TouchableOpacity
-                onPress={() => handleOptionPress(option)}
-                disabled={showResult || isProcessing}
-                activeOpacity={0.85}
-                style={[
-                  styles.optionCard,
-                  shuffledOptions.length === 1 && styles.optionCardSingle,
-                  selectedOption === option.id && styles.optionSelected,
-                  showResult &&
-                    selectedOption === option.id &&
-                    isCorrect &&
-                    styles.optionCorrect,
-                  showResult &&
-                    selectedOption === option.id &&
-                    !isCorrect &&
-                    styles.optionWrong,
-                ]}
+          {/* الهيدر */}
+          <View style={{
+            marginBottom: isPortrait ? 16 : 12,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}>
+            <View style={{ alignItems: "center", flex: 1 }}>
+              <Text style={{
+                fontSize: isPortrait ? 28 : 24,
+                fontWeight: "900",
+                color: COLORS.secondary.orange,
+              }}>🎯 الاختبار</Text>
+            </View>
+            
+            {attempts > 0 && (
+              <View style={{
+                backgroundColor: COLORS.neutral.white,
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 16,
+                borderWidth: 2,
+                borderColor: COLORS.secondary.rust,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.12,
+                shadowRadius: 3,
+                elevation: 3,
+              }}>
+                <Text style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: COLORS.secondary.rust,
+                }}>المحاولة {attempts + 1}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* السؤال */}
+          <View style={{
+            marginBottom: isPortrait ? 20 : 16,
+            alignItems: "center",
+          }}>
+            <View style={{
+              backgroundColor: COLORS.neutral.white,
+              borderRadius: isPortrait ? 22 : 20,
+              padding: isPortrait ? 20 : 16,
+              width: "100%",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.12,
+              shadowRadius: 8,
+              elevation: 6,
+              borderWidth: 3,
+              borderColor: COLORS.primary.sage,
+              alignItems: "center",
+            }}>
+              <Text style={{
+                fontSize: isPortrait ? 20 : 18,
+                fontWeight: "700",
+                color: COLORS.text.primary,
+                textAlign: "center",
+                lineHeight: isPortrait ? 28 : 26,
+                marginBottom: 12,
+              }}>
+                {quiz.question}
+              </Text>
+              
+              <TouchableOpacity 
+                style={{
+                  width: isPortrait ? 55 : 50,
+                  height: isPortrait ? 55 : 50,
+                  borderRadius: 14,
+                  backgroundColor: COLORS.primary.green,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: COLORS.primary.green,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 5,
+                  borderWidth: 3,
+                  borderColor: COLORS.neutral.white,
+                }}
+                onPress={speakQuestion}
+                activeOpacity={0.8}
               >
-                {/* الصورة */}
-                <View style={styles.imageContainer}>
-                  <Image
-                    source={option.image}
-                    style={styles.optionImage}
-                    resizeMode="cover"
-                  />
-                </View>
+                <Image
+                  source={icons.speaker}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    tintColor: COLORS.neutral.white,
+                  }}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
 
-                {/* النص */}
-                <View style={styles.textContainer}>
-                  <Text style={styles.optionText}>{option.text}</Text>
-                </View>
-
-                {/* علامة صح/خطأ */}
-                {showResult && selectedOption === option.id && (
-                  <View style={styles.resultBadge}>
+          {/* الخيارات */}
+          <View style={{
+            flexDirection: isPortrait ? "column" : "row",
+            gap: isPortrait ? 16 : 14,
+            justifyContent: "center",
+            flexWrap: isPortrait ? "nowrap" : "wrap",
+            alignItems: isPortrait ? "stretch" : "flex-start",
+          }}>
+            {shuffledOptions.map((option, index) => (
+              <Animated.View
+                key={option.id}
+                style={{
+                  width: isPortrait
+                    ? "100%"
+                    : shuffledOptions.length === 1
+                    ? Math.min(350, width * 0.6)
+                    : "48%",
+                  maxWidth: shuffledOptions.length === 1 && isPortrait ? 380 : undefined,
+                  alignSelf: shuffledOptions.length === 1 ? "center" : undefined,
+                  transform: [{ scale: selectedOption === option.id ? scaleAnim : 1 }],
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => handleOptionPress(option)}
+                  disabled={showResult || isProcessing}
+                  activeOpacity={0.85}
+                  style={{
+                    backgroundColor: COLORS.neutral.white,
+                    borderRadius: isPortrait ? 20 : 18,
+                    overflow: "hidden",
+                    borderWidth: shuffledOptions.length === 1 ? 4 : 3,
+                    borderColor: shuffledOptions.length === 1
+                      ? COLORS.primary.green
+                      : selectedOption === option.id
+                      ? COLORS.primary.teal
+                      : COLORS.neutral.cream,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 8,
+                    elevation: 6,
+                    backgroundColor:
+                      showResult && selectedOption === option.id && isCorrect
+                        ? COLORS.primary.sage
+                        : showResult && selectedOption === option.id && !isCorrect
+                        ? COLORS.secondary.peach
+                        : COLORS.neutral.white,
+                    transform: shuffledOptions.length === 1 ? [{ scale: 1.02 }] : undefined,
+                  }}
+                >
+                  {/* الصورة */}
+                  <View style={{
+                    width: "100%",
+                    height: getImageHeight(),
+                    backgroundColor: COLORS.neutral.cream,
+                  }}>
                     <Image
-                      source={isCorrect ? icons.correct : icons.wrong}
-                      style={styles.resultIcon}
-                      resizeMode="contain"
+                      source={option.image}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                      }}
+                      resizeMode="cover"
                     />
                   </View>
-                )}
 
-                {shuffledOptions.length === 1 && (
-                  <View style={styles.pressHereBadge}>
-                    <Text style={styles.pressHereText}>👆 اضغط هنا</Text>
+                  {/* النص */}
+                  <View style={{
+                    padding: isPortrait ? 14 : 12,
+                    backgroundColor: "transparent",
+                    minHeight: isPortrait ? 60 : 55,
+                    justifyContent: "center",
+                  }}>
+                    <Text style={{
+                      fontSize: isPortrait ? 16 : 15,
+                      fontWeight: "700",
+                      color: COLORS.text.primary,
+                      textAlign: "center",
+                    }}>
+                      {option.text}
+                    </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-        </View>
 
-        {/* رسالة النجاح */}
+                  {/* علامة صح/خطأ */}
+                  {showResult && selectedOption === option.id && (
+                    <View style={{
+                      position: "absolute",
+                      top: 10,
+                      right: 10,
+                      width: isPortrait ? 55 : 50,
+                      height: isPortrait ? 55 : 50,
+                      borderRadius: 14,
+                      backgroundColor: COLORS.neutral.white,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 3 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 5,
+                      elevation: 6,
+                      borderWidth: 3,
+                      borderColor: COLORS.neutral.white,
+                      padding: 6,
+                    }}>
+                      <Image 
+                        source={isCorrect ? icons.correct : icons.wrong} 
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                        }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+          </View>
+        </ScrollView>
+
+        {/* رسالة النجاح - في الأعلى */}
         {showResult && isCorrect && (
           <Animated.View
-            style={[
-              styles.successContainer,
-              {
-                opacity: starAnim,
-                transform: [
-                  {
-                    scale: starAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.5, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
+            style={{
+              position: "absolute",
+              top: Platform.OS === "ios" ? 60 : 70,
+              left: 20,
+              right: 20,
+              backgroundColor: COLORS.neutral.white,
+              borderRadius: isPortrait ? 25 : 22,
+              padding: isPortrait ? 24 : 20,
+              alignItems: "center",
+              shadowColor: COLORS.primary.green,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.25,
+              shadowRadius: 12,
+              elevation: 10,
+              borderWidth: 4,
+              borderColor: COLORS.primary.green,
+              opacity: starAnim,
+              transform: [
+                {
+                  scale: starAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.5, 1],
+                  }),
+                },
+              ],
+            }}
           >
             <Image
               source={icons.star}
-              style={styles.starIcon}
+              style={{
+                width: isPortrait ? 75 : 65,
+                height: isPortrait ? 75 : 65,
+                marginBottom: 12,
+              }}
               resizeMode="contain"
             />
-            <Text style={styles.successText}>أحسنت يا {childName}!</Text>
-            <Text style={styles.successSubtext}>حصلت على نجمة</Text>
-
+            <Text style={{
+              fontSize: isPortrait ? 24 : 22,
+              fontWeight: "900",
+              color: COLORS.primary.green,
+              marginBottom: 6,
+            }}>
+              أحسنت يا {childName}!
+            </Text>
+            <Text style={{
+              fontSize: isPortrait ? 16 : 15,
+              fontWeight: "600",
+              color: COLORS.text.secondary,
+              marginBottom: 10,
+            }}>
+              حصلت على نجمة
+            </Text>
+            
             <Animated.View
-              style={[
-                styles.pointsContainer,
-                {
-                  opacity: pointsAnim,
-                  transform: [
-                    {
-                      translateY: pointsAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [20, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
+              style={{
+                marginTop: 8,
+                backgroundColor: COLORS.secondary.yellow,
+                paddingHorizontal: isPortrait ? 20 : 18,
+                paddingVertical: isPortrait ? 10 : 8,
+                borderRadius: 18,
+                borderWidth: 3,
+                borderColor: COLORS.neutral.white,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.18,
+                shadowRadius: 5,
+                elevation: 5,
+                opacity: pointsAnim,
+                transform: [
+                  {
+                    translateY: pointsAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              }}
             >
-              <Text style={styles.pointsText}>
+              <Text style={{
+                fontSize: isPortrait ? 20 : 18,
+                fontWeight: "900",
+                color: COLORS.neutral.white,
+              }}>
                 +{attempts === 0 ? 15 : 10} نقطة 🎉
               </Text>
             </Animated.View>
@@ -524,7 +692,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
   },
 
   /* 🎨 خلفية ترابية */
@@ -565,263 +732,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary.peach,
     bottom: "25%",
     right: -20,
-  },
-
-  /* الهيدر */
-  header: {
-    marginBottom: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: Platform.OS === "ios" ? 10 : 0,
-  },
-  headerPortrait: {
-    paddingTop: Platform.OS === "ios" ? 10 : 0,
-  },
-  headerContent: {
-    alignItems: "center",
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: COLORS.secondary.orange,
-  },
-
-  attemptsIndicator: {
-    backgroundColor: COLORS.neutral.white,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: COLORS.secondary.rust,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  attemptsText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.secondary.rust,
-  },
-
-  /* السؤال */
-  questionSection: {
-    marginBottom: 25,
-    alignItems: "center",
-  },
-  questionBubble: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 25,
-    padding: 24,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: COLORS.primary.sage,
-    alignItems: "center",
-  },
-  questionText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: COLORS.text.primary,
-    textAlign: "center",
-    lineHeight: 32,
-  },
-  speakerButton: {
-    marginTop: 16,
-    width: 60,
-    height: 60,
-    borderRadius: 15,
-    backgroundColor: COLORS.primary.green,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: COLORS.primary.green,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 4,
-    borderColor: COLORS.neutral.white,
-  },
-  speakerIcon: {
-    width: 32,
-    height: 32,
-    tintColor: COLORS.neutral.white,
-  },
-
-  /* الخيارات */
-  optionsRow: {
-    flexDirection: "row",
-    gap: 16,
-    justifyContent: "center",
-    flexWrap: "wrap",
-  },
-  optionsRowPortrait: {
-    flexDirection: "column",
-    gap: 20,
-  },
-  optionWrapper: {
-    flex: 1,
-    maxWidth: "48%",
-  },
-  optionWrapperPortrait: {
-    maxWidth: "100%",
-    width: "100%",
-  },
-  optionWrapperSingle: {
-    maxWidth: 350,
-  },
-  optionCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 25,
-    overflow: "hidden",
-    borderWidth: 4,
-    borderColor: COLORS.neutral.cream,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  optionCardSingle: {
-    borderWidth: 5,
-    borderColor: COLORS.primary.green,
-    transform: [{ scale: 1.05 }],
-  },
-  optionSelected: {
-    borderColor: COLORS.primary.teal,
-  },
-  optionCorrect: {
-    borderColor: COLORS.primary.green,
-    backgroundColor: COLORS.primary.sage,
-  },
-  optionWrong: {
-    borderColor: COLORS.secondary.rust,
-    backgroundColor: COLORS.secondary.peach,
-  },
-  imageContainer: {
-    width: "100%",
-    height: 180,
-    backgroundColor: COLORS.neutral.cream,
-  },
-  optionImage: {
-    width: "100%",
-    height: "100%",
-  },
-  textContainer: {
-    padding: 16,
-    backgroundColor: COLORS.neutral.white,
-    minHeight: 70,
-    justifyContent: "center",
-  },
-  optionText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: COLORS.text.primary,
-    textAlign: "center",
-  },
-  resultBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 60,
-    height: 60,
-    borderRadius: 15,
-    backgroundColor: COLORS.neutral.white,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    borderWidth: 4,
-    borderColor: COLORS.neutral.white,
-    padding: 8,
-  },
-  resultIcon: {
-    width: "100%",
-    height: "100%",
-  },
-
-  pressHereBadge: {
-    position: "absolute",
-    bottom: -20,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  pressHereText: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: COLORS.primary.green,
-    backgroundColor: COLORS.neutral.white,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: COLORS.primary.green,
-  },
-
-  /* رسالة النجاح */
-  successContainer: {
-    position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 30,
-    padding: 32,
-    alignItems: "center",
-    shadowColor: COLORS.primary.green,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-    borderWidth: 5,
-    borderColor: COLORS.primary.green,
-  },
-  starIcon: {
-    width: 90,
-    height: 90,
-    marginBottom: 16,
-  },
-  successText: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: COLORS.primary.green,
-    marginBottom: 8,
-  },
-  successSubtext: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: COLORS.text.secondary,
-    marginBottom: 12,
-  },
-
-  pointsContainer: {
-    marginTop: 12,
-    backgroundColor: COLORS.secondary.yellow,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
-    borderWidth: 4,
-    borderColor: COLORS.neutral.white,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  pointsText: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: COLORS.neutral.white,
   },
 });

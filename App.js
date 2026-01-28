@@ -5,7 +5,6 @@ import SplashScreen from "./src/screens/SplashScreen";
 import WelcomeScreen from "./src/screens/WelcomeScreen";
 import ChildInfoScreen from "./src/screens/ChildInfoScreen";
 import HomeScreen from "./src/screens/HomeScreen";
-import ParentGateScreen from "./src/screens/ParentGateScreen";
 import ParentMenuScreen from "./src/screens/ParentMenuScreen";
 import AACScreen from "./src/screens/AACScreen";
 import WordManagerScreen from "./src/screens/WordManagerScreen";
@@ -30,7 +29,6 @@ export default function App() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="ChildInfo" component={ChildInfoScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="ParentGate" component={ParentGateScreen} />
         <Stack.Screen name="ParentMenu" component={ParentMenuScreen} />
         <Stack.Screen name="AAC" component={AACScreen} />
         <Stack.Screen name="WordManager" component={WordManagerScreen} />

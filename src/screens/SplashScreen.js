@@ -1,4 +1,15 @@
-import { View, Text, StyleSheet, Animated, Easing, Image } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  Easing,
+  Image,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+  useWindowDimensions,
+} from "react-native";
 import { useEffect, useRef } from "react";
 import { getChildInfo } from "../storage/childStorage";
 
@@ -13,6 +24,10 @@ const COLORS = {
 };
 
 export default function SplashScreen({ navigation }) {
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+  const isSmallScreen = width < 375;
+
   // ✨ Animations
   const logoScale = useRef(new Animated.Value(0)).current;
   const logoRotate = useRef(new Animated.Value(0)).current;
@@ -175,95 +190,197 @@ export default function SplashScreen({ navigation }) {
   });
 
   return (
-    <View style={styles.container}>
-      {/* 🎨 Decorative circles في الخلفية */}
-      <View style={styles.circle1} />
-      <View style={styles.circle2} />
-      <View style={styles.circle3} />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      
+      <View style={styles.container}>
+        {/* 🎨 Decorative circles في الخلفية */}
+        <View style={[styles.circle1, !isPortrait && styles.circle1Landscape]} />
+        <View style={[styles.circle2, !isPortrait && styles.circle2Landscape]} />
+        <View style={[styles.circle3, !isPortrait && styles.circle3Landscape]} />
 
-      {/* ⭐ Animated twinkling stars */}
-      <Animated.Text style={[styles.star, styles.star1, { opacity: star1 }]}>
-        ⭐
-      </Animated.Text>
-      <Animated.Text style={[styles.star, styles.star2, { opacity: star2 }]}>
-        ⭐
-      </Animated.Text>
-      <Animated.Text style={[styles.star, styles.star3, { opacity: star3 }]}>
-        ⭐
-      </Animated.Text>
+        {/* ⭐ Animated twinkling stars */}
+        <Animated.Text style={[
+          styles.star, 
+          styles.star1,
+          !isPortrait && styles.star1Landscape,
+          { opacity: star1 }
+        ]}>
+          ⭐
+        </Animated.Text>
+        <Animated.Text style={[
+          styles.star, 
+          styles.star2,
+          !isPortrait && styles.star2Landscape,
+          { opacity: star2 }
+        ]}>
+          ⭐
+        </Animated.Text>
+        <Animated.Text style={[
+          styles.star, 
+          styles.star3,
+          !isPortrait && styles.star3Landscape,
+          { opacity: star3 }
+        ]}>
+          ⭐
+        </Animated.Text>
 
-      {/* 🦁 Logo مع floating animation */}
-      <Animated.View
-        style={[
-          styles.logoContainer,
+        {/* 🦁 Logo مع floating animation */}
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            {
+              marginTop: isPortrait ? 60 : 20,
+              opacity: logoOpacity,
+              transform: [
+                { scale: logoScale },
+                { rotate: logoRotation },
+                { translateY: floatingTranslateY },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.logoCircle}>
+            <Image 
+              source={require("../../assets/lion/lion_8.webp")} 
+              style={[
+                styles.logoImage,
+                {
+                  width: isPortrait ? (isSmallScreen ? 160 : 200) : 140,
+                  height: isPortrait ? (isSmallScreen ? 160 : 200) : 140,
+                }
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+          
+          {/* تأثير الإضاءة */}
+          <View style={[
+            styles.glowEffect,
+            {
+              width: isPortrait ? 200 : 140,
+              height: isPortrait ? 200 : 140,
+              borderRadius: isPortrait ? 100 : 70,
+            }
+          ]} />
+        </Animated.View>
+
+        {/* 📝 اسم التطبيق */}
+        <Animated.View
+          style={{
+            opacity: titleOpacity,
+            transform: [{ translateY: titleSlide }],
+            marginTop: isPortrait ? 0 : -20,
+          }}
+        >
+          <Text style={[
+            styles.appName,
+            {
+              fontSize: isPortrait ? (isSmallScreen ? 48 : 56) : 44,
+              marginBottom: isPortrait ? 8 : 4,
+            }
+          ]}>Linoo</Text>
+        </Animated.View>
+
+        {/* 💬 العنوان الفرعي */}
+        <Animated.View style={{ 
+          opacity: subtitleFade,
+          paddingHorizontal: isPortrait ? 20 : 40,
+        }}>
+          <Text style={[
+            styles.subtitle,
+            {
+              fontSize: isPortrait ? (isSmallScreen ? 18 : 20) : 16,
+              marginBottom: isPortrait ? 4 : 2,
+            }
+          ]}>
+            رحلة التواصل والتعلم
+          </Text>
+          <Text style={[
+            styles.subtitle2,
+            {
+              fontSize: isPortrait ? (isSmallScreen ? 16 : 18) : 14,
+              marginBottom: isPortrait ? 50 : 30,
+            }
+          ]}>
+            مع أصدقائنا الصغار
+          </Text>
+        </Animated.View>
+
+        {/* 📊 شريط التحميل المحسّن */}
+        <View style={[
+          styles.loadingSection,
           {
-            opacity: logoOpacity,
-            transform: [
-              { scale: logoScale },
-              { rotate: logoRotation },
-              { translateY: floatingTranslateY },
-            ],
-          },
-        ]}
-      >
-        <View style={styles.logoCircle}>
-          <Image 
-            source={require("../../assets/lion/lion_8.png")} 
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+            width: isPortrait ? '70%' : '50%',
+            marginTop: isPortrait ? 0 : -10,
+          }
+        ]}>
+          <View style={[
+            styles.progressBackground,
+            {
+              height: isPortrait ? 24 : 20,
+              borderRadius: isPortrait ? 20 : 16,
+            }
+          ]}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                { 
+                  width: progressBarWidth,
+                  borderRadius: isPortrait ? 20 : 16,
+                },
+              ]}
+            >
+              <View style={styles.progressShine} />
+            </Animated.View>
+          </View>
+          
+          <View style={[
+            styles.loadingTextContainer,
+            { marginTop: isPortrait ? 16 : 12 }
+          ]}>
+            <Text style={[
+              styles.loadingText,
+              { fontSize: isPortrait ? (isSmallScreen ? 16 : 18) : 15 }
+            ]}>جاري التحضير</Text>
+            <Text style={[
+              styles.loadingDots,
+              { fontSize: isPortrait ? (isSmallScreen ? 16 : 18) : 15 }
+            ]}>...</Text>
+          </View>
         </View>
-        
-        {/* تأثير الإضاءة */}
-        <View style={styles.glowEffect} />
-      </Animated.View>
 
-      {/* 📝 اسم التطبيق */}
-      <Animated.View
-        style={{
-          opacity: titleOpacity,
-          transform: [{ translateY: titleSlide }],
-        }}
-      >
-        <Text style={styles.appName}>Linoo</Text>
-      </Animated.View>
-
-      {/* 💬 العنوان الفرعي */}
-      <Animated.View style={{ opacity: subtitleFade }}>
-        <Text style={styles.subtitle}>رحلة التواصل والتعلم</Text>
-        <Text style={styles.subtitle2}>مع أصدقائنا الصغار</Text>
-      </Animated.View>
-
-      {/* 📊 شريط التحميل المحسّن */}
-      <View style={styles.loadingSection}>
-        <View style={styles.progressBackground}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              { width: progressBarWidth },
-            ]}
-          >
-            <View style={styles.progressShine} />
-          </Animated.View>
-        </View>
-        
-        <View style={styles.loadingTextContainer}>
-          <Text style={styles.loadingText}>جاري التحضير</Text>
-          <Text style={styles.loadingDots}>...</Text>
+        {/* 🎈 زخارف الأسفل */}
+        <View style={[
+          styles.bottomDecor,
+          {
+            bottom: isPortrait ? 40 : 20,
+            gap: isPortrait ? 20 : 15,
+          }
+        ]}>
+          <Text style={[
+            styles.decorEmoji,
+            { fontSize: isPortrait ? 28 : 22 }
+          ]}>🎈</Text>
+          <Text style={[
+            styles.decorEmoji,
+            { fontSize: isPortrait ? 28 : 22 }
+          ]}>🌟</Text>
+          <Text style={[
+            styles.decorEmoji,
+            { fontSize: isPortrait ? 28 : 22 }
+          ]}>🎨</Text>
         </View>
       </View>
-
-      {/* 🎈 زخارف الأسفل */}
-      <View style={styles.bottomDecor}>
-        <Text style={styles.decorEmoji}>🎈</Text>
-        <Text style={styles.decorEmoji}>🌟</Text>
-        <Text style={styles.decorEmoji}>🎨</Text>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -283,6 +400,13 @@ const styles = StyleSheet.create({
     top: -150,
     right: -100,
   },
+  circle1Landscape: {
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    top: -100,
+    right: -80,
+  },
   circle2: {
     position: 'absolute',
     width: 350,
@@ -292,6 +416,13 @@ const styles = StyleSheet.create({
     opacity: 0.05,
     bottom: -120,
     left: -80,
+  },
+  circle2Landscape: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    bottom: -80,
+    left: -60,
   },
   circle3: {
     position: 'absolute',
@@ -303,10 +434,14 @@ const styles = StyleSheet.create({
     top: '50%',
     left: -50,
   },
-logoImage: {
-    width: 200,
-    height: 200,
+  circle3Landscape: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    top: '40%',
+    left: -40,
   },
+
   /* ⭐ النجوم المتلألئة */
   star: {
     position: 'absolute',
@@ -316,13 +451,28 @@ logoImage: {
     top: '20%',
     right: '15%',
   },
+  star1Landscape: {
+    top: '15%',
+    right: '10%',
+    fontSize: 20,
+  },
   star2: {
     top: '25%',
     left: '20%',
   },
+  star2Landscape: {
+    top: '20%',
+    left: '15%',
+    fontSize: 20,
+  },
   star3: {
     bottom: '30%',
     right: '25%',
+  },
+  star3Landscape: {
+    bottom: '25%',
+    right: '20%',
+    fontSize: 20,
   },
 
   /* 🦁 الشعار */
@@ -331,54 +481,46 @@ logoImage: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoEmoji: {
-    fontSize: 90,
+  logoCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
+    // Sizes set dynamically
   },
   glowEffect: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
     backgroundColor: COLORS.accent,
     opacity: 0.15,
   },
 
   /* 📝 النصوص */
   appName: {
-    fontSize: 56,
     fontWeight: '900',
     color: COLORS.primary,
-    marginBottom: 8,
     letterSpacing: 2,
     textShadowColor: 'rgba(0,0,0,0.1)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   subtitle: {
-    fontSize: 20,
     color: COLORS.secondary,
     textAlign: 'center',
     fontWeight: '600',
-    marginBottom: 4,
   },
   subtitle2: {
-    fontSize: 18,
     color: '#7A7A7A',
     textAlign: 'center',
     fontWeight: '500',
-    marginBottom: 50,
   },
 
   /* 📊 قسم التحميل */
   loadingSection: {
-    width: '70%',
     alignItems: 'center',
   },
   progressBackground: {
     width: '100%',
-    height: 24,
     backgroundColor: COLORS.cream,
-    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
@@ -391,7 +533,6 @@ logoImage: {
   progressFill: {
     height: '100%',
     backgroundColor: COLORS.primary,
-    borderRadius: 20,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -406,15 +547,12 @@ logoImage: {
   loadingTextContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
   },
   loadingText: {
-    fontSize: 18,
     color: '#7A7A7A',
     fontWeight: '600',
   },
   loadingDots: {
-    fontSize: 18,
     color: COLORS.primary,
     fontWeight: 'bold',
     marginLeft: 4,
@@ -423,12 +561,9 @@ logoImage: {
   /* 🎈 الزخارف السفلية */
   bottomDecor: {
     position: 'absolute',
-    bottom: 40,
     flexDirection: 'row',
-    gap: 20,
   },
   decorEmoji: {
-    fontSize: 28,
     opacity: 0.3,
   },
 });

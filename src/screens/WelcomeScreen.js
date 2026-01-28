@@ -9,23 +9,23 @@ import {
   Platform,
   StatusBar,
   Image,
+  useWindowDimensions,
 } from "react-native";
 import { useEffect, useRef } from "react";
+import { COLORS } from "../styles/colors";
 
-// 🎨 ألوان Linoo الترابية
-const COLORS = {
-  background: '#FFF9EE',
-  card: '#FFFFFF',
-  primary: '#7FA896',
-  primarySoft: '#E8F5F2',
-  secondary: '#D9956C',
-  accent: '#E8C68E',
-  sage: '#B5C9B4',
-  textMain: '#2D3436',
-  textSub: '#636E72',
+const icons = {
+  communication: require("../../assets/words-icon.webp"),
+  stories: require("../../assets/stories.webp"),
+  rewards: require("../../assets/lion/lion_8.webp"),
+  customize: require("../../assets/profile-icon.webp"),
 };
 
 export default function WelcomeScreen({ navigation }) {
+  const { width, height } = useWindowDimensions();
+  const isPortrait = height > width;
+  const isSmallScreen = width < 375;
+
   // ✨ Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -66,30 +66,45 @@ export default function WelcomeScreen({ navigation }) {
 
   const features = [
     {
-      icon: "💬",
+      iconKey: "communication",
       title: "التواصل السهل",
       desc: "لوحة AAC بسيطة وواضحة مع أصوات طبيعية",
-      color: COLORS.primary,
+      color: COLORS.primary.green,
     },
     {
-      icon: "📚",
+      iconKey: "stories",
       title: "قصص تفاعلية",
       desc: "تعلم ممتع مع الصوت والصور المتحركة",
-      color: COLORS.secondary,
+      color: COLORS.secondary.orange,
     },
     {
-      icon: "⭐",
+      iconKey: "rewards",
       title: "نظام المكافآت",
       desc: "نجوم وإنجازات لتحفيز طفلك",
-      color: COLORS.accent,
+      color: COLORS.secondary.yellow,
     },
     {
-      icon: "🎯",
+      iconKey: "customize",
       title: "تخصيص كامل",
       desc: "كلمات وصور خاصة بطفلك",
-      color: COLORS.sage,
+      color: COLORS.primary.teal,
     },
   ];
+
+  // حساب عرض المربعات بشكل ديناميكي
+  const getCardWidth = () => {
+    const horizontalPadding = isPortrait ? 32 : 48;
+    const gap = isPortrait ? 12 : 16;
+    const availableWidth = width - horizontalPadding;
+    
+    if (isPortrait) {
+      return (availableWidth - gap) / 2;
+    } else {
+      return (availableWidth - (gap * 3)) / 4;
+    }
+  };
+
+  const cardWidth = getCardWidth();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -97,11 +112,26 @@ export default function WelcomeScreen({ navigation }) {
       
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: isPortrait ? 16 : 24,
+            paddingTop: isPortrait ? 16 : 12,
+            paddingBottom: isPortrait ? 32 : 24,
+          }
+        ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* 🎨 خلفية ترابية */}
+        <View style={styles.backgroundPattern}>
+          <View style={[styles.floatingShape, styles.shape1]} />
+          <View style={[styles.floatingShape, styles.shape2]} />
+          <View style={[styles.floatingShape, styles.shape3]} />
+          <View style={[styles.floatingShape, styles.shape4]} />
+        </View>
+
         {/* 🦁 Hero Section */}
-        <View style={styles.heroSection}>
+        <View style={[styles.heroSection, { marginBottom: isPortrait ? 24 : 16 }]}>
           <Animated.View
             style={[
               styles.logoContainer,
@@ -109,15 +139,26 @@ export default function WelcomeScreen({ navigation }) {
             ]}
           >
             <View style={styles.logoCircle}>
-            <Text style={styles.welcomeTitle}>أهلاً بك في </Text>
-
+              <Text style={[
+                styles.welcomeTitle,
+                {
+                  fontSize: isSmallScreen ? 24 : (isPortrait ? 28 : 24),
+                  marginBottom: isPortrait ? 4 : 2,
+                }
+              ]}>
+                أهلاً بك في
+              </Text>
               <Image 
-                source={require("../../assets/Welcome.png")} 
-                style={styles.logoImage}
+                source={require("../../assets/Welcome.webp")} 
+                style={{
+                  width: isSmallScreen ? 180 : (isPortrait ? 220 : 180),
+                  height: isSmallScreen ? 180 : (isPortrait ? 220 : 180),
+                  marginBottom: isPortrait ? -45 : -35,
+                  marginTop: isPortrait ? -60 : -45,
+                }}
                 resizeMode="contain"
               />
             </View>
-        
           </Animated.View>
 
           <Animated.View
@@ -126,7 +167,13 @@ export default function WelcomeScreen({ navigation }) {
               transform: [{ translateY: slideAnim }],
             }}
           >
-            <Text style={styles.welcomeSubtitle}>
+            <Text style={[
+              styles.welcomeSubtitle,
+              {
+                fontSize: isSmallScreen ? 14 : (isPortrait ? 16 : 14),
+                paddingHorizontal: isPortrait ? 16 : 40,
+              }
+            ]}>
               رفيق طفلك في رحلة التواصل والتعلم 🌟
             </Text>
           </Animated.View>
@@ -139,15 +186,33 @@ export default function WelcomeScreen({ navigation }) {
             transform: [{ translateY: slideAnim }],
           }}
         >
-          <Text style={styles.sectionTitle}>✨ ماذا يقدم التطبيق؟</Text>
+          <Text style={[
+            styles.sectionTitle,
+            {
+              fontSize: isSmallScreen ? 20 : (isPortrait ? 22 : 20),
+              marginBottom: isPortrait ? 16 : 12,
+            }
+          ]}>
+            ✨ ماذا يقدم التطبيق؟
+          </Text>
           
-          <View style={styles.featuresGrid}>
+          <View style={[
+            styles.featuresGrid,
+            {
+              gap: isPortrait ? 12 : 16,
+              marginBottom: isPortrait ? 24 : 16,
+            }
+          ]}>
             {features.map((feature, index) => (
               <Animated.View
                 key={index}
                 style={[
                   styles.featureCard,
                   {
+                    width: cardWidth,
+                    padding: isSmallScreen ? 12 : (isPortrait ? 16 : 14),
+                    borderRadius: isPortrait ? 20 : 18,
+                    minHeight: isPortrait ? (isSmallScreen ? 160 : 170) : 140,
                     opacity: fadeAnim,
                     transform: [
                       {
@@ -163,13 +228,39 @@ export default function WelcomeScreen({ navigation }) {
                 <View
                   style={[
                     styles.featureIconContainer,
-                    { backgroundColor: feature.color + '20' },
+                    {
+                      width: isPortrait ? 60 : 50,
+                      height: isPortrait ? 60 : 50,
+                      marginBottom: isPortrait ? 10 : 8,
+                      backgroundColor: feature.color,
+                    }
                   ]}
                 >
-                  <Text style={styles.featureIcon}>{feature.icon}</Text>
+                  <Image 
+                    source={icons[feature.iconKey]} 
+                    style={{
+                      width: isPortrait ? 58 : 48,
+                      height: isPortrait ? 58 : 48,
+                      tintColor: COLORS.neutral.white,
+                    }}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureDesc}>{feature.desc}</Text>
+                <Text style={[
+                  styles.featureTitle,
+                  { fontSize: isSmallScreen ? 14 : (isPortrait ? 16 : 14) }
+                ]}>
+                  {feature.title}
+                </Text>
+                <Text style={[
+                  styles.featureDesc,
+                  {
+                    fontSize: isSmallScreen ? 11 : (isPortrait ? 12 : 11),
+                    lineHeight: isPortrait ? 16 : 14,
+                  }
+                ]}>
+                  {feature.desc}
+                </Text>
               </Animated.View>
             ))}
           </View>
@@ -180,13 +271,19 @@ export default function WelcomeScreen({ navigation }) {
           style={[
             styles.ageCard,
             {
+              marginBottom: isPortrait ? 24 : 16,
+              padding: isPortrait ? 16 : 14,
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
-          <Text style={styles.ageEmoji}>👶👧</Text>
-          <Text style={styles.ageText}>مناسب للأطفال من عمر 2 إلى 8 سنوات</Text>
+          <Text style={[
+            styles.ageText,
+            { fontSize: isSmallScreen ? 14 : (isPortrait ? 16 : 15) }
+          ]}>
+            مناسب للأطفال من عمر 2 إلى 8 سنوات
+          </Text>
         </Animated.View>
 
         {/* 🚀 Start Button */}
@@ -196,27 +293,35 @@ export default function WelcomeScreen({ navigation }) {
           }}
         >
           <TouchableOpacity
-            style={styles.startButton}
+            style={[
+              styles.startButton,
+              {
+                paddingVertical: isPortrait ? 18 : 16,
+                paddingHorizontal: isPortrait ? 24 : 32,
+                marginBottom: isPortrait ? 12 : 8,
+              }
+            ]}
             onPress={() => navigation.replace("ChildInfo")}
-            activeOpacity={0.9}
+            activeOpacity={0.85}
           >
             <View style={styles.buttonContent}>
-              <Text style={styles.startIcon}>🚀</Text>
-              <Text style={styles.startText}>لنبدأ الرحلة</Text>
-            </View>
-            <View style={styles.arrowContainer}>
-              <Text style={styles.arrow}>←</Text>
+              <Text style={[
+                styles.startText,
+                { fontSize: isSmallScreen ? 20 : (isPortrait ? 22 : 20) }
+              ]}>
+                لنبدأ الرحلة
+              </Text>
             </View>
           </TouchableOpacity>
 
           {/* Footer text */}
-          <Text style={styles.footerText}>
+          <Text style={[
+            styles.footerText,
+            { fontSize: isSmallScreen ? 13 : (isPortrait ? 15 : 14) }
+          ]}>
             رحلة التواصل والتعلم تبدأ الآن ✨
           </Text>
         </Animated.View>
-
-        {/* Bottom spacing */}
-        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -231,213 +336,170 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 20,
-    paddingBottom: 40,
+    flexGrow: 1,
+  },
+
+  /* 🎨 خلفية ترابية */
+  backgroundPattern: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+  },
+  floatingShape: {
+    position: "absolute",
+    borderRadius: 100,
+    opacity: 0.08,
+  },
+  shape1: {
+    width: 200,
+    height: 200,
+    backgroundColor: COLORS.primary.green,
+    top: -50,
+    right: -60,
+  },
+  shape2: {
+    width: 150,
+    height: 150,
+    backgroundColor: COLORS.secondary.orange,
+    bottom: -40,
+    left: -50,
+  },
+  shape3: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.primary.teal,
+    top: "30%",
+    left: -30,
+  },
+  shape4: {
+    width: 100,
+    height: 100,
+    backgroundColor: COLORS.secondary.peach,
+    bottom: "25%",
+    right: -20,
   },
 
   /* 🦁 Hero Section */
   heroSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    zIndex: 10,
   },
   logoContainer: {
     position: 'relative',
   },
-  logoImage: {
-    width: 250,
-    height: 250,
-    marginBottom: -52,
-    marginTop: -60,
-
-  },
-  logoEmoji: {
-    fontSize: 70,
-  },
-  starDecor: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  miniStar: {
-    fontSize: 20,
+  logoCircle: {
+    alignItems: 'center',
   },
   welcomeTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: COLORS.primary,
+    fontWeight: '900',
+    color: COLORS.primary.green,
     textAlign: 'center',
-    marginBottom: 8,
     letterSpacing: 0.5,
   },
   welcomeSubtitle: {
-    fontSize: 17,
-    color: COLORS.textSub,
+    fontWeight: '600',
+    color: COLORS.text.secondary,
     textAlign: 'center',
-    lineHeight: 24,
-  },
-
-  /* 💡 About Card */
-  aboutCard: {
-    backgroundColor: COLORS.primarySoft,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 32,
-    borderWidth: 2,
-    borderColor: COLORS.primary + '40',
-  },
-  aboutHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  aboutIcon: {
-    fontSize: 32,
-    marginRight: 10,
-  },
-  aboutTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  aboutText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: COLORS.textSub,
+    lineHeight: 22,
   },
 
   /* ✨ Features Section */
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.textMain,
-    marginBottom: 20,
+    fontWeight: '900',
+    color: COLORS.secondary.orange,
     textAlign: 'center',
   },
   featuresGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 16,
-    marginBottom: 32,
   },
   featureCard: {
-    width: '48%',
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: COLORS.neutral.white,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+    justifyContent: 'space-between',
+    borderWidth: 3,
+    borderColor: COLORS.neutral.cream,
+  },
+  featureIconContainer: {
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
     elevation: 5,
-    minHeight: 170,
-    justifyContent: 'space-between',
-  },
-  featureIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  featureIcon: {
-    fontSize: 38,
+    borderWidth: 3,
+    borderColor: COLORS.neutral.white,
   },
   featureTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textMain,
+    fontWeight: '900',
+    color: COLORS.text.primary,
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   featureDesc: {
-    fontSize: 13,
-    color: COLORS.textSub,
+    fontWeight: '600',
+    color: COLORS.text.secondary,
     textAlign: 'center',
-    lineHeight: 18,
   },
 
   /* 🎈 Age Card */
   ageCard: {
-    backgroundColor: COLORS.accent + '30',
+    backgroundColor: COLORS.neutral.white,
     borderRadius: 20,
-    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
-    borderWidth: 2,
-    borderColor: COLORS.accent,
-  },
-  ageEmoji: {
-    fontSize: 32,
-    marginRight: 12,
+    borderWidth: 3,
+    borderColor: COLORS.secondary.yellow,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
   },
   ageText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.textMain,
-    flex: 1,
+    fontWeight: '800',
+    color: COLORS.text.primary,
+    textAlign: 'center',
   },
 
   /* 🚀 Start Button */
   startButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary.green,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-    marginBottom: 16,
-    shadowColor: COLORS.primary,
+    justifyContent: 'center',
+    borderRadius: 22,
+    shadowColor: COLORS.primary.green,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
-    elevation: 10,
+    elevation: 12,
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  startIcon: {
-    fontSize: 28,
-    marginRight: 12,
+    justifyContent: 'center',
   },
   startText: {
-    color: COLORS.card,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  arrowContainer: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  arrow: {
-    color: COLORS.card,
-    fontSize: 24,
-    fontWeight: 'bold',
+    color: COLORS.neutral.white,
+    fontWeight: '900',
   },
 
   /* 📝 Footer */
   footerText: {
-    fontSize: 15,
-    color: COLORS.textSub,
+    fontWeight: '600',
+    color: COLORS.text.secondary,
     textAlign: 'center',
-    marginBottom: 8,
-  },
-
-  /* Spacing */
-  bottomSpacer: {
-    height: 20,
   },
 });
