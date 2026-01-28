@@ -376,7 +376,7 @@ export default function ChildInfoScreen({ navigation }) {
                 color: COLORS.text.secondary,
                 marginTop: 6,
                 marginRight: 4,
-              }}>من 2 إلى 8 سنوات</Text>
+              }}>من 1 إلى 5 سنوات</Text>
             </View>
 
             {/* 👶 Gender Selection */}

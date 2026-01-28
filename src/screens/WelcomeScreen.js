@@ -282,7 +282,7 @@ export default function WelcomeScreen({ navigation }) {
             styles.ageText,
             { fontSize: isSmallScreen ? 14 : (isPortrait ? 16 : 15) }
           ]}>
-            مناسب للأطفال من عمر 2 إلى 8 سنوات
+            مناسب للأطفال من عمر 1 إلى 5 سنوات
           </Text>
         </Animated.View>
 
